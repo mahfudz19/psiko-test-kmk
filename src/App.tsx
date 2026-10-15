@@ -1,5 +1,5 @@
-import GenUApp from "./imports/gen_u_platform"
+import Landing from './Pages/Landing'
 
 export default function App() {
-  return <GenUApp />
+  return <Landing />
 }
