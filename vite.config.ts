@@ -8,7 +8,7 @@ export default defineConfig(() => {
   const isStatic = process.env.BUILD_STATIC === 'true'
 
   return {
-    base: isStatic ? './' : '/',
+    base: isStatic ? './' : undefined,
     plugins: [
       ...(isStatic
         ? []
