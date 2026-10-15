@@ -157,7 +157,7 @@ function category(score: number) {
 export default function RiasecAssessment({
   mentors,
 }: {
-  mentors: { id: number name: string school: string }[]
+  mentors: { id: number; name: string; school: string }[]
 }) {
   const [stage, setStage] = useState<"intro" | "questions" | "results">("intro")
   const [step, setStep] = useState(0)

@@ -4,23 +4,33 @@ import tailwindcss from '@tailwindcss/vite'
 import laravel from 'laravel-vite-plugin'
 import path from 'node:path'
 
-export default defineConfig({
-  plugins: [
-    laravel({
-      input: ['src/main.tsx', 'src/index.css'],
-      refresh: true,
-    }),
-    react(),
-    tailwindcss(),
-  ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+export default defineConfig(() => {
+  const isStatic = process.env.BUILD_STATIC === 'true'
+
+  return {
+    base: isStatic ? './' : '/',
+    plugins: [
+      ...(isStatic
+        ? []
+        : [
+            laravel({
+              input: ['src/main.tsx', 'src/index.css'],
+              refresh: true,
+            }),
+          ]),
+      react(),
+      tailwindcss(),
+    ],
+    resolve: {
+      alias: {
+        '@': path.resolve(import.meta.dirname, './src'),
+      },
     },
-  },
-  server: {
-    host: 'localhost',
-    port: 5173,
-    cors: true,
-  },
+    server: {
+      host: 'localhost',
+      port: 5173,
+      cors: true,
+    },
+  }
 })
+
