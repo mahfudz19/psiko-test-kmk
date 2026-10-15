@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from '@inertiajs/react'
-import landingPersonOne from '../imports/landing-person-1.png'
-import landingPersonTwo from '../imports/landing-person-2.png'
-import landingPersonThree from '../imports/landing-person-3.png'
-import landingAboutCampus from '../imports/landing-about-campus.jpg'
+const landingPersonOne = '/landing-person-1.png'
+const landingPersonTwo = '/landing-person-2.png'
+const landingPersonThree = '/landing-person-3.png'
+const landingAboutCampus = '/landing-about-campus.jpg'
 import {
   GraduationCap,
   Compass,
