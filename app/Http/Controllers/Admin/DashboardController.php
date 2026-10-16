@@ -128,9 +128,6 @@ class DashboardController extends Controller
 
     public function updateUser(Request $request, int $id): RedirectResponse
     {
-        Log::error('runnnign updateUser: ', [
-            'request' => $request->all(),
-        ]);
         $user = User::findOrFail($id);
 
         $validated = $request->validate([
@@ -169,22 +166,16 @@ class DashboardController extends Controller
 
         $sendEmail = $request->boolean('send_email', true);
 
-        Log::error('has create: ', [
-            'user' => $user,
-            'plainPassword' => $plainPassword,
-            'personal_email' => $user->personal_email,
-        ]);
-
         if ($sendEmail && !empty($user->personal_email)) {
-            Log::error('validate: ', [
-                '($sendEmail && !empty($user->personal_email))' => ($sendEmail && !empty($user->personal_email))
-            ]);
             try {
-                Mail::to($user->personal_email)->send(new WorkspaceCredentialsMail($user, $plainPassword));
+                $mailable = new WorkspaceCredentialsMail($user, $plainPassword);
+                Mail::to($user->personal_email)->send($mailable);
             } catch (\Throwable $e) {
-                Log::error('Gagal mengirim email kredensial saat update user: ' . $e->getMessage(), [
-                    'exception' => $e,
-                    'user_id' => $user->id,
+                Log::error('DEBUG_MAIL ERROR: Terjadi kegagalan saat proses email', [
+                    'pesan_error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'baris' => $e->getLine(),
+                    'trace' => $e->getTraceAsString(),
                 ]);
 
                 return back()->with('warning', "Akun {$user->name} ({$user->email}) berhasil diperbarui, namun email kredensial gagal dikirim ke {$user->personal_email}: {$e->getMessage()}");
