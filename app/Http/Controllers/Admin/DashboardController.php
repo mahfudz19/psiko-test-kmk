@@ -128,6 +128,9 @@ class DashboardController extends Controller
 
     public function updateUser(Request $request, int $id): RedirectResponse
     {
+        Log::error('runnnign updateUser: ', [
+            'request' => $request->all(),
+        ]);
         $user = User::findOrFail($id);
 
         $validated = $request->validate([
@@ -166,7 +169,16 @@ class DashboardController extends Controller
 
         $sendEmail = $request->boolean('send_email', true);
 
+        Log::error('has create: ', [
+            'user' => $user,
+            'plainPassword' => $plainPassword,
+            'personal_email' => $user->personal_email,
+        ]);
+
         if ($sendEmail && !empty($user->personal_email)) {
+            Log::error('validate: ', [
+                '($sendEmail && !empty($user->personal_email))' => ($sendEmail && !empty($user->personal_email))
+            ]);
             try {
                 Mail::to($user->personal_email)->send(new WorkspaceCredentialsMail($user, $plainPassword));
             } catch (\Throwable $e) {
@@ -202,7 +214,7 @@ class DashboardController extends Controller
     {
         $tests = PsychometricTest::orderBy('order_num')->get();
         $totalTests = $tests->count();
-        $activeGform = $tests->where('is_active', true)->filter(fn ($t) => !empty($t->gform_url))->count();
+        $activeGform = $tests->where('is_active', true)->filter(fn($t) => !empty($t->gform_url))->count();
         $estimatedRespondents = RiasecAssessment::count() > 0 ? RiasecAssessment::count() + 1240 : 1248;
 
         return Inertia::render('Admin/InputTest', [
