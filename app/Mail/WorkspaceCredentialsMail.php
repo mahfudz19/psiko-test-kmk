@@ -29,7 +29,6 @@ class WorkspaceCredentialsMail extends Mailable
     {
         return new Content(
             htmlString: $this->renderHtml(),
-            textString: $this->renderText(),
         );
     }
 
