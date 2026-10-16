@@ -21,3 +21,4 @@ vendor/
 /.plugins/
 /.opencode-skills/
 README prod.md
+public/hot
