@@ -13,6 +13,7 @@ use App\Mail\WorkspaceCredentialsMail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -113,7 +114,14 @@ class DashboardController extends Controller
 
         try {
             Mail::to($user->personal_email)->send(new WorkspaceCredentialsMail($user, $plainPassword));
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+            Log::error('Gagal mengirim email kredensial saat buat akun: ' . $e->getMessage(), [
+                'exception' => $e,
+                'user_id' => $user->id,
+            ]);
+
+            return back()->with('warning', "Akun {$user->name} ({$workspaceEmail}) berhasil dibuat, namun email kredensial gagal dikirim ke {$user->personal_email}: {$e->getMessage()}");
+        }
 
         return back()->with('success', "Akun {$user->name} ({$workspaceEmail}) berhasil dibuat dan kredensial dikirimkan ke {$user->personal_email}.");
     }
@@ -133,9 +141,9 @@ class DashboardController extends Controller
             'school' => ['nullable', 'string', 'max:255'],
             'npsn' => ['nullable', 'string', 'max:50'],
             'password' => [empty($user->password) ? 'required' : 'nullable', 'string', 'min:6'],
+            'send_email' => ['nullable', 'boolean'],
         ]);
 
-        $oldStatus = $user->status;
         $plainPassword = $validated['password'] ?? null;
 
         $updateData = [
@@ -156,18 +164,34 @@ class DashboardController extends Controller
 
         $user->update($updateData);
 
-        if (!empty($plainPassword) || ($oldStatus === 'pending' && $user->status === 'active')) {
+        $sendEmail = $request->boolean('send_email', true);
+
+        if ($sendEmail && !empty($user->personal_email)) {
             try {
                 Mail::to($user->personal_email)->send(new WorkspaceCredentialsMail($user, $plainPassword));
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+                Log::error('Gagal mengirim email kredensial saat update user: ' . $e->getMessage(), [
+                    'exception' => $e,
+                    'user_id' => $user->id,
+                ]);
+
+                return back()->with('warning', "Akun {$user->name} ({$user->email}) berhasil diperbarui, namun email kredensial gagal dikirim ke {$user->personal_email}: {$e->getMessage()}");
+            }
+
+            return back()->with('success', "Akun {$user->name} ({$user->email}) berhasil diperbarui dan kredensial dikirimkan ke {$user->personal_email}.");
         }
 
-        return back()->with('success', "Akun {$user->name} ({$user->email}) berhasil diperbarui dan kredensial dikirimkan ke {$user->personal_email}.");
+        return back()->with('success', "Akun {$user->name} ({$user->email}) berhasil diperbarui.");
     }
 
     public function toggleUserStatus(int $id): RedirectResponse
     {
         $user = User::findOrFail($id);
+
+        if (empty($user->email)) {
+            return back()->with('error', "Status akun {$user->name} belum dapat diubah karena belum memiliki email Google Workspace.");
+        }
+
         $newStatus = $user->status === 'banned' ? 'active' : 'banned';
         $user->update(['status' => $newStatus]);
 

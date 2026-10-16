@@ -33,6 +33,7 @@ interface AdminUsersProps {
   flash?: {
     success?: string
     error?: string
+    warning?: string
   }
 }
 
@@ -59,6 +60,7 @@ export default function AdminUsers({ users = [], flash }: AdminUsersProps) {
     school: '',
     npsn: '',
     password: '',
+    send_email: true,
   })
 
   const openCreateModal = () => {
@@ -75,6 +77,7 @@ export default function AdminUsers({ users = [], flash }: AdminUsersProps) {
       school: '',
       npsn: '',
       password: '',
+      send_email: true,
     })
     setModalOpen(true)
   }
@@ -92,6 +95,7 @@ export default function AdminUsers({ users = [], flash }: AdminUsersProps) {
       school: user.school && user.school !== '-' ? user.school : '',
       npsn: user.npsn && user.npsn !== '-' ? user.npsn : '',
       password: '',
+      send_email: true,
     })
     setModalOpen(true)
   }
@@ -154,6 +158,16 @@ export default function AdminUsers({ users = [], flash }: AdminUsersProps) {
         {flash?.success && (
           <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium flex items-center justify-between">
             <span>{flash.success}</span>
+          </div>
+        )}
+        {flash?.warning && (
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium flex items-center justify-between">
+            <span>{flash.warning}</span>
+          </div>
+        )}
+        {flash?.error && (
+          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium flex items-center justify-between">
+            <span>{flash.error}</span>
           </div>
         )}
 
@@ -298,17 +312,19 @@ export default function AdminUsers({ users = [], flash }: AdminUsersProps) {
                             >
                               Edit
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleStatus(u.id)}
-                              className={`text-xs font-semibold px-3 py-1 rounded-lg transition border ${
-                                u.status === 'active'
-                                  ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
-                                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
-                              }`}
-                            >
-                              {u.status === 'active' ? 'Nonaktifkan' : 'Aktifkan'}
-                            </button>
+                            {Boolean(u.email) && (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleStatus(u.id)}
+                                className={`text-xs font-semibold px-3 py-1 rounded-lg transition border ${
+                                  u.status === 'active'
+                                    ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
+                                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                                }`}
+                              >
+                                {u.status === 'active' ? 'Nonaktifkan' : 'Aktifkan'}
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -528,11 +544,17 @@ export default function AdminUsers({ users = [], flash }: AdminUsersProps) {
                 {errors.password && (
                   <p className="text-xs text-rose-600 mt-1">{errors.password}</p>
                 )}
-                <div className="mt-2 p-3 bg-amber-50 rounded-xl border border-amber-200/70 text-xs text-amber-900 flex items-start gap-2">
-                  <Mail size={16} className="text-amber-700 shrink-0 mt-0.5" />
-                  <span>
-                    Email workspace dan password ini akan otomatis dikirimkan ke email pendaftar: <strong>{data.personal_email || '(email pribadi)'}</strong> saat disimpan.
-                  </span>
+                <div className="mt-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="send_email"
+                    checked={data.send_email}
+                    onChange={(e) => setData('send_email', e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <label htmlFor="send_email" className="text-xs text-gray-700 font-medium cursor-pointer select-none">
+                    Kirimkan informasi akun & kredensial ke email pendaftar: <strong>{data.personal_email || '(email pribadi)'}</strong> saat disimpan.
+                  </label>
                 </div>
               </div>
 
