@@ -19,7 +19,7 @@ export default function NpsnLockNotice({ profileHref }: NpsnLockNoticeProps) {
         </h3>
 
         <p className="text-gray-500 text-sm leading-relaxed max-w-md mx-auto mb-8">
-          NPSN wajib diisi pada profil sebelum Anda dapat menggunakan fitur Portal Siswa. NPSN memastikan siswa dan Guru BK hanya terhubung dengan sekolah yang sama.
+          NPSN wajib diisi pada profil sebelum Anda dapat menggunakan fitur Portal Siswa. NPSN memastikan siswa dan Guru/Mentor hanya terhubung dengan sekolah yang sama.
         </p>
 
         <Link

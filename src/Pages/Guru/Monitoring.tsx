@@ -8,11 +8,13 @@ import StudentRiasecDetail, {
 interface GuruMonitoringProps {
   students: StudentRiasecDetailData[]
   guruNpsn?: string | null
+  tests?: any[]
 }
 
 export default function GuruMonitoring({
   students = [],
   guruNpsn,
+  tests = [],
 }: GuruMonitoringProps) {
   const [selectedStudent, setSelectedStudent] = useState<StudentRiasecDetailData | null>(null)
 
@@ -21,7 +23,9 @@ export default function GuruMonitoring({
       {selectedStudent ? (
         <StudentRiasecDetail
           student={selectedStudent}
+          tests={tests}
           onBack={() => setSelectedStudent(null)}
+          canEdit={false}
         />
       ) : (
         <div className="bg-white rounded-2xl border border-gray-200/80 p-6 md:p-8 shadow-sm">
@@ -86,11 +90,11 @@ export default function GuruMonitoring({
                           </span>
                         </td>
                         <td className="py-4 px-4 text-center">
-                          {isCompleted ? (
+                          {(student.importedCount ?? 0) > 0 || (student.completedCount ?? 0) > 0 || student.assessment ? (
                             <button
                               type="button"
                               onClick={() => setSelectedStudent(student)}
-                              className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                              className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer"
                             >
                               Lihat Detail
                             </button>

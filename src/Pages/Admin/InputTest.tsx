@@ -19,9 +19,9 @@ interface AdminInputTestProps {
 export default function AdminInputTest({
   tests = [],
   stats = {
-    totalTests: 4,
-    activeGform: 4,
-    estimatedRespondents: '1,248',
+    totalTests: 0,
+    activeGform: 0,
+    estimatedRespondents: '0',
   },
 }: AdminInputTestProps) {
   const [testToEdit, setTestToEdit] = useState<PsychometricTestItem | null>(null)

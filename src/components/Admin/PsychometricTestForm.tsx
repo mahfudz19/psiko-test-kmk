@@ -7,7 +7,6 @@ export interface PsychometricTestItem {
   name: string
   description: string
   gform_url: string
-  spreadsheet_url?: string | null
   estimated_minutes: number
   order_num: number
   is_active: boolean
@@ -31,7 +30,6 @@ export default function PsychometricTestForm({
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [gformUrl, setGformUrl] = useState('')
-  const [spreadsheetUrl, setSpreadsheetUrl] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
@@ -39,12 +37,10 @@ export default function PsychometricTestForm({
       setName(testToEdit.name)
       setDescription(testToEdit.description)
       setGformUrl(testToEdit.gform_url)
-      setSpreadsheetUrl(testToEdit.spreadsheet_url || '')
     } else {
       setName('')
       setDescription('')
       setGformUrl('')
-      setSpreadsheetUrl('')
     }
   }, [testToEdit])
 
@@ -52,7 +48,6 @@ export default function PsychometricTestForm({
     setName('')
     setDescription('')
     setGformUrl('')
-    setSpreadsheetUrl('')
     if (onCancelEdit) onCancelEdit()
   }
 
@@ -64,7 +59,6 @@ export default function PsychometricTestForm({
       name,
       description,
       gform_url: gformUrl,
-      spreadsheet_url: spreadsheetUrl,
     }
 
     if (testToEdit) {
@@ -199,19 +193,6 @@ export default function PsychometricTestForm({
               placeholder="https://forms.gle/..."
               value={gformUrl}
               onChange={(e) => setGformUrl(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-gray-800 mb-1.5">
-              URL Spreadsheet Responses (Opsional untuk pelacakan)
-            </label>
-            <input
-              type="url"
-              placeholder="https://docs.google.com/spreadsheets/d/..."
-              value={spreadsheetUrl}
-              onChange={(e) => setSpreadsheetUrl(e.target.value)}
               className="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             />
           </div>

@@ -40,7 +40,7 @@ export default function NpsnFormCard({ user, role }: NpsnFormCardProps) {
 
   const endpoint = role === 'siswa' ? '/student/profile' : '/guru/profile'
   const roleSubtitle =
-    role === 'guru' ? 'Guru BK / Konselor Sekolah' : `Siswa ${user?.school || 'Sekolah Mitra'}`
+    role === 'guru' ? 'Guru/Mentor' : `Siswa ${user?.school || 'Sekolah Mitra'}`
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault()

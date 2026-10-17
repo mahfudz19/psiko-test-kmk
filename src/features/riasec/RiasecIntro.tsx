@@ -79,7 +79,7 @@ export default function RiasecIntro({
             />
           </label>
           <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">
-            Guru BK / Mentor pendamping
+            Guru/Mentor pendamping
             <select
               value={identity.mentor}
               onChange={(e) => setIdentity({ ...identity, mentor: e.target.value })}

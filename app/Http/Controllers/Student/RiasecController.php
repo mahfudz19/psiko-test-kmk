@@ -15,24 +15,50 @@ class RiasecController extends Controller
 {
     public function index(Request $request): Response
     {
+        $user = $request->user();
         $tests = PsychometricTest::where('is_active', true)->orderBy('order_num')->get();
-        $student = $request->user();
-        if (!empty($student?->npsn)) {
-            $mentors = Mentor::whereHas('user', function ($q) use ($student) {
-                $q->where('npsn', $student->npsn);
+
+        if (!empty($user?->npsn)) {
+            $mentors = Mentor::whereHas('user', function ($q) use ($user) {
+                $q->where('npsn', $user->npsn);
             })->get();
         } else {
             $mentors = Mentor::all();
         }
-        $latestAssessment = RiasecAssessment::where('user_id', $request->user()->id)
-            ->where('status', 'selesai')
-            ->latest()
-            ->first();
+
+        $assessments = RiasecAssessment::where('user_id', $user->id)->get();
+        $hasStarted = $assessments->isNotEmpty();
+
+        $completedTestIds = $assessments->where('status', 'selesai')->pluck('psychometric_test_id')->toArray();
+        $inProgressTestIds = $assessments->where('status', 'mengerjakan')->pluck('psychometric_test_id')->toArray();
+
+        $testsWithStatus = $tests->map(function ($test) use ($completedTestIds, $inProgressTestIds) {
+            $data = $test->toArray();
+            $data['is_completed'] = in_array($test->id, $completedTestIds);
+            $data['is_in_progress'] = in_array($test->id, $inProgressTestIds);
+            return $data;
+        });
+
+        $totalTests = $tests->count();
+        $completedCount = count($completedTestIds);
+        $allCompleted = $totalTests > 0 && $completedCount >= $totalTests;
+
+        $latestAssessment = $assessments->where('status', 'selesai')->sortByDesc('updated_at')->first()
+            ?? $assessments->sortByDesc('updated_at')->first();
+
+        $completedAssessments = $assessments->where('status', 'selesai')->values()->all();
+
+        $hasScores = !empty($latestAssessment?->dominant_code);
 
         return Inertia::render('Student/Riasec', [
-            'tests' => $tests,
+            'tests' => $testsWithStatus,
             'mentors' => $mentors,
-            'previousResult' => $latestAssessment,
+            'hasStarted' => $hasStarted,
+            'allCompleted' => $allCompleted,
+            'completedCount' => $completedCount,
+            'hasScores' => $hasScores,
+            'assessment' => $latestAssessment,
+            'assessments' => $completedAssessments,
         ]);
     }
 
@@ -41,20 +67,18 @@ class RiasecController extends Controller
         $validated = $request->validate([
             'test_id' => ['required'],
             'mentor_name' => ['nullable', 'string', 'max:255'],
-            'class_name' => ['nullable', 'string', 'max:255'],
-            'attendance_number' => ['nullable', 'string', 'max:255'],
         ]);
+
+        $user = $request->user();
 
         RiasecAssessment::updateOrCreate(
             [
-                'user_id' => $request->user()->id,
-                'status' => 'mengerjakan',
+                'user_id' => $user->id,
+                'psychometric_test_id' => $validated['test_id'],
             ],
             [
-                'psychometric_test_id' => $validated['test_id'],
+                'status' => 'mengerjakan',
                 'mentor_name' => $validated['mentor_name'] ?? 'Bpk. Budi Santoso, M.Psi',
-                'class_name' => $validated['class_name'] ?? 'XI IPA 2',
-                'attendance_number' => $validated['attendance_number'] ?? '12',
             ]
         );
 
@@ -67,49 +91,23 @@ class RiasecController extends Controller
         $testId = $request->input('test_id');
 
         $assessment = RiasecAssessment::where('user_id', $user->id)
-            ->where('status', 'mengerjakan')
-            ->latest()
+            ->where('psychometric_test_id', $testId)
             ->first();
-
-        $scores = [
-            'R' => 22,
-            'S' => 22,
-            'I' => 21,
-            'E' => 21,
-            'A' => 20,
-            'C' => 20,
-        ];
 
         if ($assessment) {
             $assessment->update([
-                'score_r' => $scores['R'],
-                'score_i' => $scores['I'],
-                'score_a' => $scores['A'],
-                'score_s' => $scores['S'],
-                'score_e' => $scores['E'],
-                'score_c' => $scores['C'],
-                'dominant_code' => 'RSI',
                 'status' => 'selesai',
             ]);
         } else {
             RiasecAssessment::create([
                 'user_id' => $user->id,
                 'psychometric_test_id' => $testId,
-                'score_r' => $scores['R'],
-                'score_i' => $scores['I'],
-                'score_a' => $scores['A'],
-                'score_s' => $scores['S'],
-                'score_e' => $scores['E'],
-                'score_c' => $scores['C'],
-                'dominant_code' => 'RSI',
-                'mentor_name' => $request->input('mentor_name', 'Bpk. Budi Santoso, M.Psi'),
-                'class_name' => $request->input('class_name', 'XI IPA 2'),
-                'attendance_number' => $request->input('attendance_number', '12'),
                 'status' => 'selesai',
+                'mentor_name' => $request->input('mentor_name', 'Bpk. Budi Santoso, M.Psi'),
             ]);
         }
 
-        return back()->with('success', 'Asesmen berhasil diselesaikan.');
+        return back()->with('success', 'Tes berhasil diselesaikan.');
     }
 
     public function reset(Request $request): RedirectResponse

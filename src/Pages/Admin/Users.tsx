@@ -214,7 +214,7 @@ export default function AdminUsers({ users = [], flash }: AdminUsersProps) {
             >
               <option value="all">Semua Role</option>
               <option value="siswa">Siswa</option>
-              <option value="guru">Guru BK</option>
+              <option value="guru">Guru/Mentor</option>
               <option value="admin">Admin</option>
             </select>
 
@@ -277,7 +277,7 @@ export default function AdminUsers({ users = [], flash }: AdminUsersProps) {
                                 : 'bg-gray-100 text-gray-800 border border-gray-200'
                             }`}
                           >
-                            {u.role === 'guru' ? 'Guru BK' : u.role === 'siswa' ? 'Siswa' : 'Admin'}
+                            {u.role === 'guru' ? 'Guru/Mentor' : u.role === 'siswa' ? 'Siswa' : 'Admin'}
                           </span>
                         </td>
                         <td className="py-4 px-4 text-gray-700 text-sm">
@@ -479,7 +479,7 @@ export default function AdminUsers({ users = [], flash }: AdminUsersProps) {
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-900 bg-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
                   >
                     <option value="siswa">Siswa</option>
-                    <option value="guru">Guru BK</option>
+                    <option value="guru">Guru/Mentor</option>
                     <option value="admin">Admin</option>
                   </select>
                 </div>

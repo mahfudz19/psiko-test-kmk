@@ -303,7 +303,7 @@ export default function RiasecAssessment({
                 />
               </label>
               <label className="block text-sm font-semibold text-slate-700 sm:col-span-2">
-                Guru BK / mentor
+                Guru/Mentor
                 <select
                   required
                   value={identity.mentor}
@@ -312,7 +312,7 @@ export default function RiasecAssessment({
                   }
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-normal outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
                 >
-                  <option value="">Pilih guru BK / mentor</option>
+                  <option value="">Pilih Guru/Mentor</option>
                   {mentors.map((mentor) => (
                     <option key={mentor.id} value={mentor.name}>
                       {mentor.name} — {mentor.school}
@@ -352,7 +352,7 @@ export default function RiasecAssessment({
               Diadaptasi dari instrumen asesmen minat dan bakat RIASEC yang
               dilampirkan. Butir nomor 38 muncul di dua dimensi dalam dokumen
               sumber dan ditampilkan sesuai aslinya. Hasil ini adalah bahan
-              refleksi bersama Guru BK, bukan diagnosis psikologis.
+              refleksi bersama Guru/Mentor, bukan diagnosis psikologis.
             </div>
           </aside>
         </div>
@@ -547,7 +547,7 @@ export default function RiasecAssessment({
                     year: "numeric",
                   })}
                 </p>
-                <p>Guru BK / mentor: {identity.mentor}</p>
+                <p>Guru/Mentor: {identity.mentor}</p>
               </div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
@@ -627,8 +627,8 @@ export default function RiasecAssessment({
           </div>
           <div className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-indigo-100 bg-indigo-50 p-6 sm:flex-row sm:items-center">
             <p className="max-w-2xl text-sm leading-relaxed text-indigo-900">
-              Hasil ini bukan keputusan akhir peminatan. Diskusikan bersama Guru
-              BK dan pertimbangkan nilai akademik, rencana karier, serta
+              Hasil ini bukan keputusan akhir peminatan. Diskusikan bersama Guru/Mentor
+              dan pertimbangkan nilai akademik, rencana karier, serta
               pengalamanmu. Jika skor beberapa dimensi sama, mintalah
               klarifikasi melalui konseling.
             </p>

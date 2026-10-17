@@ -22,8 +22,6 @@ class RiasecAssessment extends Model
         'dominant_code',
         'status',
         'mentor_name',
-        'class_name',
-        'attendance_number',
         'answers',
     ];
 

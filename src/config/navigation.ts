@@ -32,4 +32,5 @@ export const adminMenuItems: MenuItem[] = [
   { id: 'users', label: 'Monitoring Pengguna', icon: Users, href: '/admin/users' },
   { id: 'input_test', label: 'Input Tes Minat Bakat', icon: CheckSquare, href: '/admin/input-test' },
   { id: 'input_jurusan', label: 'Input Jelajahi Jurusan', icon: Database, href: '/admin/input-jurusan' },
+  { id: 'monitoring_tes', label: 'Monitoring Tes', icon: Users, href: '/admin/monitoring-tes' },
 ]

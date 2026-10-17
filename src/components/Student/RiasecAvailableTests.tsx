@@ -1,87 +1,158 @@
-import React from 'react'
-import { Compass, BookOpen, Brain, Award, ChevronRight } from 'lucide-react'
+import React, { useMemo } from 'react'
+import {
+  Compass,
+  BookOpen,
+  Brain,
+  Award,
+  ChevronRight,
+  CheckCircle2,
+  Clock,
+  Briefcase,
+  Target,
+  Puzzle,
+  Palette,
+  Lightbulb,
+  UserCheck,
+  Flame,
+  Sparkles,
+  LucideIcon,
+} from 'lucide-react'
 import { PsychometricTestItem } from '../Admin/PsychometricTestForm'
 
+export interface ExtendedPsychometricTestItem extends PsychometricTestItem {
+  is_completed?: boolean
+  is_in_progress?: boolean
+}
+
 interface RiasecAvailableTestsProps {
-  tests: PsychometricTestItem[]
-  onStartTest: (test: PsychometricTestItem) => void
+  tests: ExtendedPsychometricTestItem[]
+  onStartTest: (test: ExtendedPsychometricTestItem) => void
   completedCount?: number
 }
 
+interface IconPreset {
+  key: string
+  icon: LucideIcon
+  bg: string
+  shadow: string
+  keywords: string[]
+}
+
+const ICON_PRESETS: IconPreset[] = [
+  {
+    key: 'compass',
+    icon: Compass,
+    bg: 'bg-indigo-600',
+    shadow: 'shadow-indigo-200',
+    keywords: ['holland', 'riasec', 'minat', 'karir', 'career', 'kejuruan', 'arah'],
+  },
+  {
+    key: 'brain',
+    icon: Brain,
+    bg: 'bg-purple-600',
+    shadow: 'shadow-purple-200',
+    keywords: ['kecerdasan', 'intelligence', 'majemuk', 'otak', 'kognitif', 'iq'],
+  },
+  {
+    key: 'book',
+    icon: BookOpen,
+    bg: 'bg-[#0EA5E9]',
+    shadow: 'shadow-sky-200',
+    keywords: ['gaya belajar', 'belajar', 'learning', 'akademik', 'studi', 'baca'],
+  },
+  {
+    key: 'briefcase',
+    icon: Briefcase,
+    bg: 'bg-emerald-600',
+    shadow: 'shadow-emerald-200',
+    keywords: ['nilai kerja', 'work value', 'profesi', 'pekerjaan', 'lingkungan kerja', 'kantor'],
+  },
+  {
+    key: 'user-check',
+    icon: UserCheck,
+    bg: 'bg-rose-500',
+    shadow: 'shadow-rose-200',
+    keywords: ['kepribadian', 'personality', 'mbti', 'karakter', 'sikap', 'psikologis'],
+  },
+  {
+    key: 'puzzle',
+    icon: Puzzle,
+    bg: 'bg-teal-600',
+    shadow: 'shadow-teal-200',
+    keywords: ['logika', 'penalaran', 'analisis', 'pola', 'numerik', 'matematika', 'problem'],
+  },
+  {
+    key: 'palette',
+    icon: Palette,
+    bg: 'bg-[#F59E0B]',
+    shadow: 'shadow-amber-200',
+    keywords: ['kreatif', 'kreativitas', 'seni', 'art', 'desain', 'estetika', 'bakat'],
+  },
+  {
+    key: 'target',
+    icon: Target,
+    bg: 'bg-violet-600',
+    shadow: 'shadow-violet-200',
+    keywords: ['target', 'tujuan', 'fokus', 'strategi', 'konsentrasi', 'ketelitian'],
+  },
+  {
+    key: 'lightbulb',
+    icon: Lightbulb,
+    bg: 'bg-blue-600',
+    shadow: 'shadow-blue-200',
+    keywords: ['ide', 'inovasi', 'solutif', 'kritis', 'gagasan', 'wawasan'],
+  },
+  {
+    key: 'flame',
+    icon: Flame,
+    bg: 'bg-orange-500',
+    shadow: 'shadow-orange-200',
+    keywords: ['motivasi', 'ambisi', 'semangat', 'antusias', 'energi', 'kepemimpinan', 'leader'],
+  },
+  {
+    key: 'sparkles',
+    icon: Sparkles,
+    bg: 'bg-fuchsia-600',
+    shadow: 'shadow-fuchsia-200',
+    keywords: ['potensi', 'eksplorasi', 'bakat khusus', 'talenta', 'masa depan'],
+  },
+  {
+    key: 'award',
+    icon: Award,
+    bg: 'bg-cyan-600',
+    shadow: 'shadow-cyan-200',
+    keywords: ['prestasi', 'kompetensi', 'pencapaian', 'keunggulan', 'sertifikasi'],
+  },
+]
+
 export default function RiasecAvailableTests({
-  tests,
+  tests = [],
   onStartTest,
   completedCount = 0,
 }: RiasecAvailableTestsProps) {
-  const getTestIcon = (idx: number) => {
-    switch (idx) {
-      case 0:
-        return (
-          <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-200">
-            <Compass size={28} />
-          </div>
-        )
-      case 1:
-        return (
-          <div className="w-14 h-14 rounded-2xl bg-[#0EA5E9] text-white flex items-center justify-center shadow-md shadow-sky-200">
-            <BookOpen size={28} />
-          </div>
-        )
-      case 2:
-        return (
-          <div className="w-14 h-14 rounded-2xl bg-[#8B5CF6] text-white flex items-center justify-center shadow-md shadow-purple-200">
-            <Brain size={28} />
-          </div>
-        )
-      default:
-        return (
-          <div className="w-14 h-14 rounded-2xl bg-[#F59E0B] text-white flex items-center justify-center shadow-md shadow-amber-200">
-            <Award size={28} />
-          </div>
-        )
-    }
-  }
+  const testIcons = useMemo(() => {
+    const usedKeys = new Set<string>()
+    return tests.map((test, index) => {
+      const text = `${test.name} ${test.description || ''}`.toLowerCase()
 
-  const defaultCards = [
-    {
-      id: 1,
-      name: 'RIASEC',
-      num: 'TES 01',
-      description:
-        'Kenali enam kecenderungan minat untuk memetakan jurusan dan lingkungan kerja yang sesuai.',
-      estimated_minutes: 15,
-      isAvailable: true,
-    },
-    {
-      id: 2,
-      name: 'Gaya Belajar',
-      num: 'TES 02',
-      description:
-        'Temukan cara menyerap dan mengolah informasi yang paling efektif untukmu.',
-      estimated_minutes: 10,
-      isAvailable: false,
-    },
-    {
-      id: 3,
-      name: 'Kecerdasan Majemuk',
-      num: 'TES 03',
-      description:
-        'Memetakan potensi kecerdasan dominan sebagai dasar eksplorasi bidang studi.',
-      estimated_minutes: 15,
-      isAvailable: false,
-    },
-    {
-      id: 4,
-      name: 'Tes Nilai Kerja',
-      num: 'TES 04',
-      description:
-        'Membantu peserta memahami nilai dan lingkungan kerja yang paling sesuai.',
-      estimated_minutes: 12,
-      isAvailable: false,
-    },
-  ]
+      let matched = ICON_PRESETS.find(
+        (preset) => !usedKeys.has(preset.key) && preset.keywords.some((kw) => text.includes(kw))
+      )
 
-  const activeTest = tests.length > 0 ? tests[0] : null
+      if (!matched) {
+        matched = ICON_PRESETS.find((preset) => !usedKeys.has(preset.key))
+      }
+
+      if (!matched) {
+        matched = ICON_PRESETS[index % ICON_PRESETS.length]
+      }
+
+      usedKeys.add(matched.key)
+      return matched
+    })
+  }, [tests])
+
+  const totalTests = tests.length
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -98,7 +169,7 @@ export default function RiasecAvailableTests({
             rekomendasi jurusan kuliah dan jalur karier yang lebih personal.
           </p>
           <div className="text-xs sm:text-sm text-indigo-200 font-medium">
-            {completedCount} dari 4 tes telah diselesaikan
+            {completedCount} dari {totalTests} tes telah diselesaikan
           </div>
         </div>
       </div>
@@ -109,64 +180,96 @@ export default function RiasecAvailableTests({
             Daftar Tes Tersedia
           </h2>
           <span className="text-xs sm:text-sm text-gray-500 font-medium">
-            Menampilkan 4 alat tes psikometri
+            Menampilkan {totalTests} alat tes psikometri
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {defaultCards.map((card, idx) => {
-            const isFirst = idx === 0
+        {totalTests === 0 ? (
+          <div className="bg-white rounded-3xl border border-gray-100 p-12 text-center shadow-sm">
+            <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Clock size={32} />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              Belum Ada Alat Tes Terdaftar
+            </h3>
+            <p className="text-sm text-gray-500 max-w-md mx-auto">
+              Saat ini administrator belum mengaktifkan atau mendaftarkan instrumen tes psikometri. Silakan hubungi admin atau periksa kembali nanti.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {tests.map((test, idx) => {
+              const testNum = `TES ${String(idx + 1).padStart(2, '0')}`
+              const isCompleted = Boolean(test.is_completed)
+              const isInProgress = Boolean(test.is_in_progress && !isCompleted)
 
-            return (
-              <div
-                key={card.id}
-                className="bg-white rounded-3xl border border-gray-100 p-7 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
-              >
-                <div>
-                  <div className="flex items-start gap-4 mb-4">
-                    {getTestIcon(idx)}
-                    <div>
-                      <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                        {card.num}
-                      </span>
-                      <h3 className="text-xl font-extrabold text-gray-900">
-                        {card.name}
-                      </h3>
+              return (
+                <div
+                  key={test.id}
+                  className="bg-white rounded-3xl border border-gray-100 p-7 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
+                >
+                  <div>
+                    <div className="flex items-start gap-4 mb-4">
+                      {(() => {
+                        const iconConfig = testIcons[idx] || ICON_PRESETS[idx % ICON_PRESETS.length]
+                        const IconComponent = iconConfig.icon
+                        return (
+                          <div
+                            className={`w-14 h-14 rounded-2xl ${iconConfig.bg} text-white flex items-center justify-center shadow-md ${iconConfig.shadow} shrink-0`}
+                          >
+                            <IconComponent size={28} />
+                          </div>
+                        )
+                      })()}
+                      <div>
+                        <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                          {testNum}
+                        </span>
+                        <h3 className="text-xl font-extrabold text-gray-900 leading-snug">
+                          {test.name}
+                        </h3>
+                      </div>
                     </div>
+                    <p className="text-sm text-gray-600 leading-relaxed mb-6">
+                      {test.description}
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-600 leading-relaxed mb-6">
-                    {card.description}
-                  </p>
-                </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-                  <span className="text-xs text-gray-400 font-medium">
-                    Estimasi {card.estimated_minutes} menit
-                  </span>
-                  {isFirst && activeTest ? (
-                    <button
-                      type="button"
-                      onClick={() => onStartTest(activeTest)}
-                      className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-[#4355F9] hover:bg-[#3243E5] shadow-sm transition-all"
-                    >
-                      Mulai Tes
-                      <ChevronRight size={16} />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-[#554DF0] opacity-80 cursor-not-allowed"
-                    >
-                      Segera Hadir
-                      <ChevronRight size={16} />
-                    </button>
-                  )}
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                    <span className="text-xs text-gray-400 font-medium">
+                      Estimasi {test.estimated_minutes || 15} menit
+                    </span>
+
+                    {isCompleted ? (
+                      <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs text-emerald-700 bg-emerald-50 border border-emerald-200">
+                        <CheckCircle2 size={16} />
+                        Selesai
+                      </span>
+                    ) : isInProgress ? (
+                      <button
+                        type="button"
+                        onClick={() => onStartTest(test)}
+                        className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-amber-500 hover:bg-amber-600 shadow-sm transition-all cursor-pointer"
+                      >
+                        Lanjutkan
+                        <ChevronRight size={16} />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onStartTest(test)}
+                        className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-[#4355F9] hover:bg-[#3243E5] shadow-sm transition-all cursor-pointer"
+                      >
+                        Mulai Tes
+                        <ChevronRight size={16} />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
