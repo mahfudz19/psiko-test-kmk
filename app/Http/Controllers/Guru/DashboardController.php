@@ -35,9 +35,22 @@ class DashboardController extends Controller
             ]);
         }
 
-        $studentIds = User::where('role', 'siswa')->where('npsn', $guru->npsn)->pluck('id');
+        $guruNames = array_unique(array_filter([trim($guru->name), trim($guru->mentor?->name ?? '')]));
+
+        $assignedStudentsQuery = User::where('role', 'siswa')
+            ->where('npsn', $guru->npsn)
+            ->where(function ($q) use ($guruNames) {
+                $q->whereHas('riasecAssessments', function ($sub) use ($guruNames) {
+                    $sub->whereIn('mentor_name', $guruNames);
+                })->orWhereIn('selected_mentor', $guruNames);
+            });
+
+        $studentIds = $assignedStudentsQuery->pluck('id');
         $studentsCount = $studentIds->count();
-        $completedTestsCount = RiasecAssessment::whereIn('user_id', $studentIds)->where('status', 'selesai')->count();
+        $completedTestsCount = RiasecAssessment::whereIn('user_id', $studentIds)
+            ->whereIn('mentor_name', $guruNames)
+            ->where('status', 'selesai')
+            ->count();
         $pendingSessionsCount = MentorBooking::whereHas('student', function ($q) use ($guru) {
             $q->where('npsn', $guru->npsn);
         })->where('status', 'pending')->count();
@@ -69,6 +82,7 @@ class DashboardController extends Controller
             });
 
         $testActivities = RiasecAssessment::whereIn('user_id', $studentIds)
+            ->whereIn('mentor_name', $guruNames)
             ->where('status', 'selesai')
             ->with('user')
             ->latest('updated_at')
@@ -101,8 +115,7 @@ class DashboardController extends Controller
                 ];
             });
 
-        $studentActivities = User::where('role', 'siswa')
-            ->where('npsn', $guru->npsn)
+        $studentActivities = $assignedStudentsQuery
             ->latest('created_at')
             ->take(4)
             ->get()
@@ -150,11 +163,20 @@ class DashboardController extends Controller
         $tests = PsychometricTest::where('is_active', true)->orderBy('order_num')->get();
         $totalActiveTests = $tests->count();
 
+        $guruNames = array_unique(array_filter([trim($guru->name), trim($guru->mentor?->name ?? '')]));
+
         $students = User::where('role', 'siswa')
             ->where('npsn', $guru->npsn)
-            ->with(['riasecAssessments' => fn ($q) => $q->latest()])
+            ->where(function ($q) use ($guruNames) {
+                $q->whereHas('riasecAssessments', function ($sub) use ($guruNames) {
+                    $sub->whereIn('mentor_name', $guruNames);
+                })->orWhereIn('selected_mentor', $guruNames);
+            })
+            ->with(['riasecAssessments' => function ($q) use ($guruNames) {
+                $q->whereIn('mentor_name', $guruNames)->latest();
+            }])
             ->get()
-            ->map(function ($student) use ($tests, $totalActiveTests) {
+            ->map(function ($student) use ($tests, $totalActiveTests, $guru) {
                 $assessments = $student->riasecAssessments;
                 $completedAssessments = $assessments->where('status', 'selesai')->filter(fn ($a) => !empty($a->dominant_code));
                 $completedTestIds = $completedAssessments->pluck('psychometric_test_id')->unique()->toArray();
@@ -182,7 +204,7 @@ class DashboardController extends Controller
                     'importedCount' => $completedCount,
                     'imported_tests' => $importedTests,
                     'dominantCode' => $activeAssessment?->dominant_code ?? '-',
-                    'mentor_name' => $activeAssessment?->mentor_name ?? 'Bpk. Budi Santoso, M.Psi',
+                    'mentor_name' => $activeAssessment?->mentor_name ?? ($student->selected_mentor ?? $guru->name),
                     'assessment' => $activeAssessment,
                     'assessments' => $completedAssessments->values()->all(),
                 ];
@@ -191,6 +213,7 @@ class DashboardController extends Controller
         return Inertia::render('Guru/Monitoring', [
             'students' => $students,
             'guruNpsn' => $guru->npsn,
+            'guruName' => $guru->name,
             'tests' => $tests,
         ]);
     }

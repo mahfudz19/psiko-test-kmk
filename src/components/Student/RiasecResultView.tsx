@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Clock } from 'lucide-react'
 import { getDimensionDefaultContent, getScoreLevel } from '@/features/riasec/dimensionProfiles'
 
 export interface RiasecAssessmentData {
@@ -28,6 +29,8 @@ export interface RiasecAssessmentData {
 interface TestOption {
   id: number
   name: string
+  has_score?: boolean
+  is_completed?: boolean
   [key: string]: any
 }
 
@@ -48,7 +51,7 @@ export default function RiasecResultView({
   onBack,
   backButtonLabel,
 }: RiasecResultViewProps) {
-  const availableTests =
+  const availableTests: TestOption[] =
     tests && tests.length > 0
       ? tests.filter(
           (t) =>
@@ -60,10 +63,22 @@ export default function RiasecResultView({
       ? assessments.map((a, idx) => ({
           id: a.psychometric_test_id || a.id || idx + 1,
           name: `Alat Tes ${idx + 1}`,
+          has_score: Boolean(a.dominant_code || (a.score_r !== undefined && a.score_r !== null)),
         }))
       : []
 
   const [activeTestId, setActiveTestId] = useState<number | null>(() => {
+    const testWithScore = availableTests.find((t) => {
+      const asm = assessments.find((a) => a.psychometric_test_id === t.id)
+      return (
+        (asm && (asm.dominant_code || (asm.score_r !== undefined && asm.score_r !== null))) ||
+        (assessment?.psychometric_test_id === t.id && (assessment.dominant_code || (assessment.score_r !== undefined && assessment.score_r !== null))) ||
+        t.has_score
+      )
+    })
+    if (testWithScore) {
+      return testWithScore.id
+    }
     if (assessment?.psychometric_test_id) {
       return assessment.psychometric_test_id
     }
@@ -80,7 +95,17 @@ export default function RiasecResultView({
     (assessments && activeTestId
       ? assessments.find((a) => a.psychometric_test_id === activeTestId)
       : null) ||
-    assessment
+    (assessment?.psychometric_test_id === activeTestId ? assessment : null) ||
+    (availableTests.length <= 1 ? assessment : null)
+
+  const activeTest = availableTests.find((t) => t.id === activeTestId)
+  const activeTestName = activeTest?.name || 'Alat Tes'
+
+  const isSynced = Boolean(
+    currentAssessment &&
+      (currentAssessment.dominant_code ||
+        (currentAssessment.score_r !== undefined && currentAssessment.score_r !== null))
+  )
 
   const studentName = currentAssessment?.user?.name || user?.name || 'Andi Pratama'
   const studentNpsn = currentAssessment?.user?.npsn || user?.npsn || '20101111'
@@ -184,6 +209,17 @@ export default function RiasecResultView({
         <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit">
           {availableTests.map((t) => {
             const isActive = activeTestId === t.id
+            const testAssessment = assessments?.find((a) => a.psychometric_test_id === t.id)
+            const isImported = Boolean(
+              (testAssessment &&
+                (testAssessment.dominant_code ||
+                  (testAssessment.score_r !== undefined && testAssessment.score_r !== null))) ||
+                (assessment?.psychometric_test_id === t.id &&
+                  (assessment.dominant_code ||
+                    (assessment.score_r !== undefined && assessment.score_r !== null))) ||
+                t.has_score,
+            )
+
             return (
               <button
                 key={t.id}
@@ -196,13 +232,59 @@ export default function RiasecResultView({
                 }`}
               >
                 <span>{t.name}</span>
+                {isImported ? (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" title="Sudah disinkronkan" />
+                ) : (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 font-medium">
+                    Belum sinkron
+                  </span>
+                )}
               </button>
             )
           })}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1.4fr] gap-6">
+      {!isSynced ? (
+        <div className="bg-white rounded-3xl border border-gray-100 p-8 sm:p-12 shadow-sm text-center max-w-2xl mx-auto space-y-4">
+          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+            <Clock size={32} className="animate-pulse" />
+          </div>
+
+          <span className="inline-block px-3 py-1 rounded-full text-xs font-bold text-amber-800 bg-amber-50 uppercase tracking-wider border border-amber-200">
+            Menunggu Sinkronisasi Spreadsheet
+          </span>
+
+          <h3 className="text-xl sm:text-2xl font-extrabold text-gray-900">
+            Hasil {activeTestName} Sedang Diproses
+          </h3>
+
+          <p className="text-sm text-gray-500 leading-relaxed max-w-md mx-auto">
+            Kamu telah menyelesaikan pengisian formulir tes ini. Nilai dan analisis minat bakat akan otomatis muncul di sini segera setelah sinkronisasi data spreadsheet dijalankan oleh Guru atau Admin.
+          </p>
+
+          <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100 max-w-sm mx-auto text-left text-xs space-y-2 mt-4">
+            <div className="flex justify-between py-1 border-b border-slate-200/60">
+              <span className="text-gray-500 font-medium">Alat Tes:</span>
+              <span className="font-bold text-gray-800">{activeTestName}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-slate-200/60">
+              <span className="text-gray-500 font-medium">Nama Siswa:</span>
+              <span className="font-bold text-gray-800">{studentName}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-slate-200/60">
+              <span className="text-gray-500 font-medium">Guru/Mentor:</span>
+              <span className="font-bold text-gray-800">{mentor}</span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span className="text-gray-500 font-medium">Status:</span>
+              <span className="font-semibold text-amber-700">Selesai &middot; Menunggu Tarik Nilai</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1.4fr] gap-6">
         <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm flex flex-col justify-between">
           <div>
             <span className="text-xs font-black uppercase tracking-widest text-indigo-600">
@@ -317,6 +399,8 @@ export default function RiasecResultView({
           </div>
         ))}
       </div>
+    </>
+  )}
 
       {onBack && (
         <div className="pt-2">

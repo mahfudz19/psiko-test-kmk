@@ -75,16 +75,17 @@ export default function PsychometricTestTable({
             <thead>
               <tr className="border-b border-gray-100 text-xs font-bold uppercase tracking-wider text-gray-500 bg-gray-50/50">
                 <th className="py-3 px-4 w-12 text-center">NO</th>
-                <th className="py-3 px-4 w-56">NAMA ALAT TES</th>
-                <th className="py-3 px-4 min-w-[300px]">DESKRIPSI</th>
-                <th className="py-3 px-4 w-44">URL GOOGLE FORM</th>
-                <th className="py-3 px-4 w-28 text-center">AKSI</th>
+                <th className="py-3 px-4 w-48">NAMA ALAT TES</th>
+                <th className="py-3 px-4 min-w-[240px]">DESKRIPSI</th>
+                <th className="py-3 px-4 w-40">GOOGLE FORM</th>
+                <th className="py-3 px-4 w-44">GOOGLE SPREADSHEET</th>
+                <th className="py-3 px-4 w-24 text-center">AKSI</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredTests.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-gray-400">
+                  <td colSpan={6} className="py-8 text-center text-gray-400">
                     Tidak ada alat tes ditemukan.
                   </td>
                 </tr>
@@ -104,15 +105,36 @@ export default function PsychometricTestTable({
                       {test.description}
                     </td>
                     <td className="py-4 px-4">
-                      <a
-                        href={test.gform_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline"
-                      >
-                        Buka Google Form
-                        <ExternalLink size={12} />
-                      </a>
+                      {test.gform_url ? (
+                        <a
+                          href={test.gform_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          Buka Form
+                          <ExternalLink size={12} />
+                        </a>
+                      ) : (
+                        <span className="text-xs text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-4">
+                      {test.spreadsheet_url ? (
+                        <a
+                          href={test.spreadsheet_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                        >
+                          Buka Sheet
+                          <ExternalLink size={11} />
+                        </a>
+                      ) : (
+                        <span className="inline-flex items-center text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                          Belum Diatur
+                        </span>
+                      )}
                     </td>
                     <td className="py-4 px-4 text-center whitespace-nowrap">
                       <div className="inline-flex items-center justify-center gap-1.5">

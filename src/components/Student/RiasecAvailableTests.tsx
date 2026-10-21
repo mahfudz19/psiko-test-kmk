@@ -15,6 +15,7 @@ import {
   UserCheck,
   Flame,
   Sparkles,
+  Lock,
   LucideIcon,
 } from 'lucide-react'
 import { PsychometricTestItem } from '../Admin/PsychometricTestForm'
@@ -22,6 +23,7 @@ import { PsychometricTestItem } from '../Admin/PsychometricTestForm'
 export interface ExtendedPsychometricTestItem extends PsychometricTestItem {
   is_completed?: boolean
   is_in_progress?: boolean
+  is_locked?: boolean
 }
 
 interface RiasecAvailableTestsProps {
@@ -202,11 +204,17 @@ export default function RiasecAvailableTests({
               const testNum = `TES ${String(idx + 1).padStart(2, '0')}`
               const isCompleted = Boolean(test.is_completed)
               const isInProgress = Boolean(test.is_in_progress && !isCompleted)
+              const isLocked = Boolean(test.is_locked ?? (idx > 0 && tests.slice(0, idx).some((t) => !t.is_completed)))
+              const prevTest = idx > 0 ? tests[idx - 1] : null
 
               return (
                 <div
                   key={test.id}
-                  className="bg-white rounded-3xl border border-gray-100 p-7 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
+                  className={`rounded-3xl border p-7 shadow-sm flex flex-col justify-between transition-all ${
+                    isLocked
+                      ? 'bg-slate-50/70 border-slate-200/80'
+                      : 'bg-white border-gray-100 hover:shadow-md'
+                  }`}
                 >
                   <div>
                     <div className="flex items-start gap-4 mb-4">
@@ -215,27 +223,49 @@ export default function RiasecAvailableTests({
                         const IconComponent = iconConfig.icon
                         return (
                           <div
-                            className={`w-14 h-14 rounded-2xl ${iconConfig.bg} text-white flex items-center justify-center shadow-md ${iconConfig.shadow} shrink-0`}
+                            className={`w-14 h-14 rounded-2xl ${
+                              isLocked
+                                ? 'bg-slate-200 text-slate-500'
+                                : `${iconConfig.bg} text-white shadow-md ${iconConfig.shadow}`
+                            } flex items-center justify-center shrink-0 relative`}
                           >
-                            <IconComponent size={28} />
+                            <IconComponent size={28} className={isLocked ? 'opacity-50' : ''} />
+                            {isLocked && (
+                              <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-slate-600 text-white flex items-center justify-center shadow-sm">
+                                <Lock size={11} />
+                              </div>
+                            )}
                           </div>
                         )
                       })()}
                       <div>
-                        <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                          {testNum}
-                        </span>
-                        <h3 className="text-xl font-extrabold text-gray-900 leading-snug">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                            {testNum}
+                          </span>
+                          {isLocked && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-200/80 text-slate-600">
+                              <Lock size={10} /> Terkunci
+                            </span>
+                          )}
+                        </div>
+                        <h3 className={`text-xl font-extrabold leading-snug ${isLocked ? 'text-gray-700' : 'text-gray-900'}`}>
                           {test.name}
                         </h3>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600 leading-relaxed mb-6">
+                    <p className={`text-sm leading-relaxed mb-4 ${isLocked ? 'text-gray-500' : 'text-gray-600'}`}>
                       {test.description}
                     </p>
+                    {isLocked && prevTest && (
+                      <div className="mb-4 text-xs font-medium text-slate-600 bg-slate-100/90 rounded-xl px-3.5 py-2.5 border border-slate-200/70 flex items-center gap-2">
+                        <Lock size={14} className="text-slate-400 shrink-0" />
+                        <span>Selesaikan <strong>{prevTest.name}</strong> terlebih dahulu</span>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                     <span className="text-xs text-gray-400 font-medium">
                       Estimasi {test.estimated_minutes || 15} menit
                     </span>
@@ -253,6 +283,15 @@ export default function RiasecAvailableTests({
                       >
                         Lanjutkan
                         <ChevronRight size={16} />
+                      </button>
+                    ) : isLocked ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-bold text-sm text-slate-400 bg-slate-100 border border-slate-200 cursor-not-allowed select-none"
+                      >
+                        <Lock size={15} />
+                        Terkunci
                       </button>
                     ) : (
                       <button

@@ -25,6 +25,7 @@ class User extends Authenticatable
         'phone',
         'npsn',
         'status',
+        'selected_mentor',
     ];
 
     protected $hidden = [

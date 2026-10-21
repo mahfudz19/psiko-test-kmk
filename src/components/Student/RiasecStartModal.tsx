@@ -141,7 +141,7 @@ export default function RiasecStartModal({
                 Google Form Sedang Berlangsung
               </h4>
               <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto leading-relaxed">
-                Tautan lembar tes telah dibuka di tab baru. Setelah selesai mengisi formulir sampai akhir, klik tombol di bawah untuk menandai tes ini telah selesai.
+                Tautan lembar tes telah dibuka di tab baru. Setelah selesai mengisi seluruh pertanyaan dan menekan tombol <strong>Kirim / Submit</strong> di Google Form, klik tombol di bawah untuk konfirmasi. Jawabanmu otomatis tersimpan di Google Spreadsheet dan disinkronkan ke hasil rapor minat bakatmu.
               </p>
             </div>
 

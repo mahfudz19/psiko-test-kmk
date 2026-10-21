@@ -1,6 +1,16 @@
 import React, { useState } from 'react'
 import { router } from '@inertiajs/react'
-import { Search, Upload, FileSpreadsheet, X, Check, FileText, Clock } from 'lucide-react'
+import {
+  Search,
+  FileSpreadsheet,
+  X,
+  Check,
+  Clock,
+  RefreshCw,
+  AlertCircle,
+  ExternalLink,
+  Link2,
+} from 'lucide-react'
 import PortalLayout from '../../Layouts/PortalLayout'
 import { adminMenuItems } from '../../config/navigation'
 import StudentRiasecDetail, {
@@ -49,12 +59,9 @@ export default function MonitoringTes({
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
 
-  const [importModalOpen, setImportModalOpen] = useState(false)
-  const [selectedImportTestId, setSelectedImportTestId] = useState<number>(
-    tests.length > 0 ? tests[0].id : 1
-  )
-  const [importFile, setImportFile] = useState<File | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [syncModalOpen, setSyncModalOpen] = useState(false)
+  const [syncTarget, setSyncTarget] = useState<string>('all')
+  const [isSyncing, setIsSyncing] = useState(false)
 
   const filteredStudents = students.filter((student) => {
     const matchesSearch =
@@ -72,27 +79,23 @@ export default function MonitoringTes({
     return matchesSearch && matchesStatus
   })
 
-  const handleImportSubmit = (e: React.FormEvent) => {
+  const handleSyncSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!importFile) return
+    setIsSyncing(true)
 
-    setIsSubmitting(true)
-
-    const formData = new FormData()
-    formData.append('file', importFile)
-    formData.append('test_id', String(selectedImportTestId))
-
-    router.post('/admin/monitoring-tes/import', formData, {
-      preserveScroll: true,
-      onSuccess: () => {
-        setIsSubmitting(false)
-        setImportModalOpen(false)
-        setImportFile(null)
+    router.post(
+      '/admin/monitoring-tes/sync-spreadsheet',
+      {
+        test_id: syncTarget,
       },
-      onError: () => {
-        setIsSubmitting(false)
-      },
-    })
+      {
+        preserveScroll: true,
+        onFinish: () => {
+          setIsSyncing(false)
+          setSyncModalOpen(false)
+        },
+      }
+    )
   }
 
   const currentStudent = selectedStudent
@@ -136,8 +139,8 @@ export default function MonitoringTes({
                   Total {students.length} Siswa
                 </span>
               </div>
-              <p className="mt-1 text-sm text-gray-500">
-                Pantau progres dan hasil tes minat bakat seluruh siswa yang telah terdaftar pada platform.
+              <p className="mt-1 text-sm text-gray-500 max-w-xl">
+                Pantau progres dan hasil tes minat bakat seluruh siswa yang terdaftar. Nilai siswa dapat ditarik langsung dari Google Spreadsheet masing-masing formulir tes secara otomatis.
               </p>
               <div className="mt-3.5 flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold text-gray-700">Alat Tes Diimpor:</span>
@@ -173,18 +176,16 @@ export default function MonitoringTes({
                 )}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (tests.length > 0 && !selectedImportTestId) {
-                  setSelectedImportTestId(tests[0].id)
-                }
-                setImportModalOpen(true)
-              }}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-sm transition self-start md:self-auto cursor-pointer"
-            >
-              <Upload size={18} /> Import Nilai Spreadsheet
-            </button>
+            <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
+              <button
+                type="button"
+                onClick={() => setSyncModalOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-indigo-200 transition cursor-pointer"
+              >
+                <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                Sinkronkan Spreadsheet
+              </button>
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-200/80 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -310,116 +311,125 @@ export default function MonitoringTes({
         </div>
       )}
 
-      {importModalOpen && (
+      {syncModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200">
             <div className="p-6 md:p-7 border-b border-gray-100 flex items-start justify-between">
               <div>
                 <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                   <FileSpreadsheet className="text-indigo-600" size={24} />
-                  Import Nilai Spreadsheet
+                  Sinkronisasi Google Spreadsheet
                 </h3>
                 <p className="text-xs text-gray-500 mt-1">
-                  Upload file CSV hasil Google Form untuk memperbarui skor siswa otomatis.
+                  Tarik tanggapan siswa secara otomatis langsung dari Google Spreadsheet masing-masing alat tes.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setImportModalOpen(false)}
+                onClick={() => setSyncModalOpen(false)}
                 className="text-gray-400 hover:text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition cursor-pointer"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleImportSubmit} className="p-6 md:p-7 space-y-5">
+            <form onSubmit={handleSyncSubmit} className="p-6 md:p-7 space-y-5">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                  PILIH ALAT TES <span className="text-red-500">*</span>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
+                  PILIH TARGET SINKRONISASI
                 </label>
                 <select
-                  value={selectedImportTestId}
-                  onChange={(e) => setSelectedImportTestId(Number(e.target.value))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm text-gray-800 bg-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition cursor-pointer"
+                  value={syncTarget}
+                  onChange={(e) => setSyncTarget(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm text-gray-800 bg-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition cursor-pointer font-medium"
                 >
+                  <option value="all">Semua Alat Tes Sekaligus (Rekomendasi)</option>
                   {tests.map((test) => (
                     <option key={test.id} value={test.id}>
-                      {test.name}
+                      Hanya: {test.name} {test.spreadsheet_url ? '' : '(Belum ada link)'}
                     </option>
                   ))}
                 </select>
-                <p className="text-[11px] text-gray-400 mt-1">
-                  Skor dalam spreadsheet akan dikaitkan ke alat tes yang dipilih di atas.
-                </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                  FILE SPREADSHEET (.CSV) <span className="text-red-500">*</span>
-                </label>
-                <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:border-indigo-400 transition bg-slate-50/50">
-                  <input
-                    type="file"
-                    id="csv-file-input"
-                    accept=".csv,text/csv,text/plain"
-                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                    className="hidden"
-                  />
-                  <label htmlFor="csv-file-input" className="cursor-pointer block">
-                    <Upload className="mx-auto text-indigo-500 mb-2" size={32} />
-                    <p className="text-sm font-semibold text-gray-700">
-                      {importFile ? importFile.name : 'Klik untuk memilih file CSV'}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      File CSV hasil ekspor lembar jawaban Google Sheets
-                    </p>
-                  </label>
+              <div className="p-4 bg-indigo-50/70 rounded-2xl border border-indigo-100 text-xs text-indigo-900 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-indigo-950">
+                  <AlertCircle size={15} className="text-indigo-600 shrink-0" />
+                  <span>Petunjuk Sinkronisasi Otomatis:</span>
                 </div>
-
-                {importFile && (
-                  <div className="mt-2 flex items-center justify-between px-3 py-2 bg-indigo-50/80 border border-indigo-100 rounded-xl text-xs text-indigo-900">
-                    <span className="truncate max-w-xs font-medium">{importFile.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => setImportFile(null)}
-                      className="text-red-500 hover:text-red-700 font-bold ml-2 cursor-pointer"
-                    >
-                      Hapus
-                    </button>
-                  </div>
-                )}
+                <p className="leading-relaxed">
+                  Sistem akan langsung terhubung ke tautan Google Spreadsheet masing-masing formulir tes, membaca respon jawaban siswa, dan menghitung skor RIASEC serta menentukan kode profil minat bakatnya secara instan.
+                </p>
+                <p className="leading-relaxed text-indigo-800">
+                  <strong>Penting:</strong> Pastikan setelan berbagi pada Google Spreadsheet telah diatur ke <strong>&quot;Siapa saja yang memiliki link dapat melihat&quot; (Anyone with the link can view)</strong>. Link dapat diatur melalui menu <em>Input Alat Tes</em>.
+                </p>
               </div>
 
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-gray-600 space-y-2">
-                <p className="font-bold text-gray-800 flex items-center gap-1.5">
-                  <FileText size={14} className="text-indigo-600" />
-                  Format File yang Didukung:
-                </p>
-                <p>
-                  1. <strong>Respons Mentah Google Form (Otomatis):</strong> Cukup unduh CSV langsung dari Google Sheets. Kolom pertanyaan skala Likert (Sangat Suka, Suka, Tidak Suka, Sangat Tidak Suka / STS, TS, S, SS / 1 - 4) otomatis dihitung per dimensi dan ditentukan kode dominan RIASEC-nya.
-                </p>
-                <p>
-                  2. <strong>Rekap Nilai:</strong> Kolom skor seperti <code>score_r, score_i, score_a, score_s, score_e, score_c</code> juga tetap didukung.
-                </p>
-                <p>
-                  3. Pastikan terdapat kolom <strong>email</strong> (atau <em>email workspace</em> / <em>email siswa</em>) sebagai pengenal siswa.
-                </p>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                    Status Link Google Spreadsheet:
+                  </label>
+                  <a
+                    href="/admin/input-test"
+                    className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                  >
+                    Atur di Input Alat Tes <ExternalLink size={11} />
+                  </a>
+                </div>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                  {tests.map((t) => {
+                    const hasUrl = Boolean(t.spreadsheet_url)
+                    return (
+                      <div
+                        key={t.id}
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/70 text-xs"
+                      >
+                        <div className="flex items-center gap-2 min-w-0 mr-2">
+                          <Link2 size={14} className={hasUrl ? 'text-indigo-600' : 'text-gray-400'} />
+                          <span className="font-semibold text-gray-800 truncate">{t.name}</span>
+                        </div>
+                        {hasUrl ? (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                              <Check size={12} /> Terhubung
+                            </span>
+                            <a
+                              href={t.spreadsheet_url!}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-gray-400 hover:text-indigo-600 p-1"
+                              title="Buka Spreadsheet"
+                            >
+                              <ExternalLink size={12} />
+                            </a>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 shrink-0">
+                            Belum Diatur
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
 
               <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setImportModalOpen(false)}
+                  onClick={() => setSyncModalOpen(false)}
                   className="px-5 py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 transition cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || !importFile}
+                  disabled={isSyncing}
                   className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold shadow-md shadow-indigo-300/30 transition disabled:opacity-50 cursor-pointer"
                 >
-                  <Check size={18} /> {isSubmitting ? 'Memproses...' : 'Mulai Import'}
+                  <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                  {isSyncing ? 'Menyinkronkan...' : 'Mulai Sinkronisasi Data'}
                 </button>
               </div>
             </form>

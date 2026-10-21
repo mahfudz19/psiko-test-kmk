@@ -10,7 +10,6 @@ import RiasecStartModal from '../../components/Student/RiasecStartModal'
 import RiasecResultView, {
   RiasecAssessmentData,
 } from '../../components/Student/RiasecResultView'
-import RiasecEmptyResult from '../../components/Student/RiasecEmptyResult'
 
 interface StudentRiasecPageProps {
   tests: ExtendedPsychometricTestItem[]
@@ -36,7 +35,7 @@ export default function StudentRiasec({
   const user = auth?.user
 
   const completedCount = tests.filter((t) => t.is_completed).length
-  const hasAnyCompleted = completedCount > 0 && hasScores
+  const hasAnyCompleted = completedCount > 0
 
   const [inAvailableTestsSession, setInAvailableTestsSession] = useState(hasStarted)
   const [selectedMentor, setSelectedMentor] = useState(
@@ -60,6 +59,7 @@ export default function StudentRiasec({
   }, [hasStarted])
 
   const handleStartTest = (test: ExtendedPsychometricTestItem) => {
+    if (test.is_locked) return
     setSelectedTest(test)
     setIsStartModalOpen(true)
   }
@@ -115,32 +115,28 @@ export default function StudentRiasec({
             />
           </div>
         ) : allCompleted || (hasAnyCompleted && viewingResult) ? (
-          hasScores ? (
-            <div className="space-y-4">
-              {!allCompleted && (
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-900">
-                  <span className="font-semibold">
-                    Anda telah menyelesaikan {completedCount} dari {tests.length} alat tes. Hasil di bawah ini merupakan laporan dari alat tes yang telah selesai dinilai.
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setViewingResult(false)}
-                    className="shrink-0 px-4 py-1.5 rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-colors cursor-pointer"
-                  >
-                    Lanjutkan Alat Tes Berikutnya
-                  </button>
-                </div>
-              )}
-              <RiasecResultView
-                assessment={assessment}
-                assessments={assessments}
-                tests={tests}
-                user={user}
-              />
-            </div>
-          ) : (
-            <RiasecEmptyResult user={user} assessment={assessment} />
-          )
+          <div className="space-y-4">
+            {!allCompleted && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-900">
+                <span className="font-semibold">
+                  Anda telah menyelesaikan {completedCount} dari {tests.length} alat tes. Hasil di bawah ini merupakan laporan dari alat tes yang telah selesai dinilai.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setViewingResult(false)}
+                  className="shrink-0 px-4 py-1.5 rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700 transition-colors cursor-pointer"
+                >
+                  Lanjutkan Alat Tes Berikutnya
+                </button>
+              </div>
+            )}
+            <RiasecResultView
+              assessment={assessment}
+              assessments={assessments}
+              tests={tests}
+              user={user}
+            />
+          </div>
         ) : !inAvailableTestsSession ? (
           <RiasecIntroView
             user={user}

@@ -72,6 +72,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::put('/kategori-jurusan/{id}', [AdminDashboardController::class, 'updateCategory'])->name('kategori_jurusan.update');
     Route::get('/monitoring-tes', [AdminDashboardController::class, 'monitoringTes'])->name('monitoring_tes');
     Route::post('/monitoring-tes/import', [AdminDashboardController::class, 'importScores'])->name('monitoring_tes.import');
+    Route::post('/monitoring-tes/sync-spreadsheet', [AdminDashboardController::class, 'syncSpreadsheet'])->name('monitoring_tes.sync_spreadsheet');
     Route::put('/monitoring-tes/{id}', [AdminDashboardController::class, 'updateStudentScore'])->name('monitoring_tes.update');
 });
 

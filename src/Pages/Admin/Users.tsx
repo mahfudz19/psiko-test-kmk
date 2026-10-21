@@ -121,14 +121,6 @@ export default function AdminUsers({ users = [], flash }: AdminUsersProps) {
     }
   }
 
-  const handleToggleStatus = (id: number) => {
-    router.patch(
-      `/admin/users/${id}/status`,
-      {},
-      { preserveScroll: true }
-    )
-  }
-
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
       u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -304,27 +296,15 @@ export default function AdminUsers({ users = [], flash }: AdminUsersProps) {
                           </span>
                         </td>
                         <td className="py-4 px-5 text-center">
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-center">
                             <button
                               type="button"
                               onClick={() => openEditModal(u)}
-                              className="text-xs font-bold text-gray-700 hover:text-indigo-600 transition"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition"
                             >
-                              Edit
+                              <Edit2 size={13} />
+                              <span>Edit</span>
                             </button>
-                            {Boolean(u.email) && (
-                              <button
-                                type="button"
-                                onClick={() => handleToggleStatus(u.id)}
-                                className={`text-xs font-semibold px-3 py-1 rounded-lg transition border ${
-                                  u.status === 'active'
-                                    ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
-                                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
-                                }`}
-                              >
-                                {u.status === 'active' ? 'Nonaktifkan' : 'Aktifkan'}
-                              </button>
-                            )}
                           </div>
                         </td>
                       </tr>

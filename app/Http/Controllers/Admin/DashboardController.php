@@ -14,6 +14,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -269,6 +270,7 @@ class DashboardController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
             'gform_url' => ['required', 'string', 'max:500'],
+            'spreadsheet_url' => ['required', 'string', 'max:500'],
         ]);
 
         $orderNum = (PsychometricTest::max('order_num') ?? 0) + 1;
@@ -277,6 +279,7 @@ class DashboardController extends Controller
             'name' => $validated['name'],
             'description' => $validated['description'],
             'gform_url' => $validated['gform_url'],
+            'spreadsheet_url' => $validated['spreadsheet_url'],
             'order_num' => $orderNum,
             'is_active' => true,
         ]);
@@ -292,12 +295,14 @@ class DashboardController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
             'gform_url' => ['required', 'string', 'max:500'],
+            'spreadsheet_url' => ['required', 'string', 'max:500'],
         ]);
 
         $test->update([
             'name' => $validated['name'],
             'description' => $validated['description'],
             'gform_url' => $validated['gform_url'],
+            'spreadsheet_url' => $validated['spreadsheet_url'],
         ]);
 
         return back()->with('success', 'Alat tes berhasil diperbarui.');
@@ -515,9 +520,152 @@ class DashboardController extends Controller
         $testId = (int) $validated['test_id'];
         $content = file_get_contents($request->file('file')->getRealPath());
 
-        $lines = preg_split('/\r\n|\r|\n/', trim($content));
-        if (count($lines) < 2) {
-            return back()->with('error', 'Format file CSV tidak valid atau kosong. Baris pertama harus berisi header kolom.');
+        $res = $this->processCsvContent($content, $testId);
+
+        if (!$res['success']) {
+            return back()->with('error', $res['message']);
+        }
+
+        $test = PsychometricTest::find($testId);
+        $testName = $test ? $test->name : 'alat tes';
+
+        return back()->with('success', "Berhasil mengimpor skor {$testName} untuk {$res['importedCount']} siswa.");
+    }
+
+    public function syncSpreadsheet(Request $request): RedirectResponse
+    {
+        $testId = $request->input('test_id');
+
+        if ($testId && $testId !== 'all') {
+            $test = PsychometricTest::find($testId);
+            if (!$test) {
+                return back()->with('error', 'Alat tes tidak ditemukan.');
+            }
+
+            if (empty($test->spreadsheet_url)) {
+                return back()->with('error', "Alat tes '{$test->name}' belum memiliki URL Spreadsheet. Silakan atur URL Spreadsheet pada menu Input Test terlebih dahulu.");
+            }
+
+            $tests = collect([$test]);
+        } else {
+            $tests = PsychometricTest::where('is_active', true)
+                ->whereNotNull('spreadsheet_url')
+                ->where('spreadsheet_url', '!=', '')
+                ->orderBy('order_num')
+                ->get();
+
+            if ($tests->isEmpty()) {
+                return back()->with('warning', 'Belum ada alat tes aktif yang memiliki URL Spreadsheet. Silakan lengkapi URL Spreadsheet pada menu Input Test terlebih dahulu.');
+            }
+        }
+
+        $successList = [];
+        $infoList = [];
+        $errorList = [];
+
+        foreach ($tests as $t) {
+            $csvUrl = $this->convertToCsvUrl($t->spreadsheet_url);
+
+            try {
+                $response = Http::timeout(25)
+                    ->withOptions(['allow_redirects' => true])
+                    ->withoutVerifying()
+                    ->get($csvUrl);
+
+                if (!$response->successful()) {
+                    $errorList[] = "'{$t->name}': Gagal mengunduh spreadsheet (HTTP {$response->status()}).";
+                    continue;
+                }
+
+                $body = $response->body();
+                $lowerBody = strtolower(substr($body, 0, 500));
+                if (str_contains($lowerBody, '<!doctype html') || str_contains($lowerBody, '<html')) {
+                    $errorList[] = "'{$t->name}': Spreadsheet tidak dapat diakses publik. Pastikan pengaturan berbagi (sharing) Google Spreadsheet diatur ke 'Siapa saja yang memiliki link dapat melihat'.";
+                    continue;
+                }
+
+                $res = $this->processCsvContent($body, $t->id);
+                if ($res['success']) {
+                    if (($res['importedCount'] ?? 0) > 0) {
+                        $successList[] = "{$t->name} ({$res['importedCount']} siswa)";
+                    } else {
+                        $infoList[] = "'{$t->name}' ({$res['message']})";
+                    }
+                } else {
+                    $errorList[] = "'{$t->name}': {$res['message']}";
+                }
+            } catch (\Exception $e) {
+                $errorList[] = "'{$t->name}': " . $e->getMessage();
+            }
+        }
+
+        if (!empty($successList) && empty($errorList)) {
+            $detailSuccess = implode(', ', $successList);
+            $detailInfo = !empty($infoList) ? ' Catatan: ' . implode('; ', $infoList) . '.' : '';
+            return back()->with('success', "Sinkronisasi otomatis berhasil untuk: {$detailSuccess}.{$detailInfo}");
+        }
+
+        if (empty($successList) && !empty($infoList) && empty($errorList)) {
+            $detailInfo = implode('; ', $infoList);
+            return back()->with('success', "Spreadsheet berhasil terhubung: {$detailInfo}. Nilai siswa akan otomatis tersinkronisasi saat siswa telah mengisi formulir tes.");
+        }
+
+        if (!empty($successList) || !empty($infoList)) {
+            $allDone = array_merge($successList, $infoList);
+            $detailSuccess = implode('; ', $allDone);
+            $detailError = implode('; ', $errorList);
+            return back()->with('warning', "Sinkronisasi selesai dengan catatan: {$detailSuccess}. Kendala: {$detailError}");
+        }
+
+        $detailError = implode('; ', $errorList);
+        return back()->with('error', "Gagal menyinkronkan data spreadsheet: {$detailError}");
+    }
+
+    private function convertToCsvUrl(string $url): string
+    {
+        $url = trim($url);
+
+        if (str_contains($url, 'output=csv') || str_contains($url, 'format=csv')) {
+            return $url;
+        }
+
+        $gid = null;
+        if (preg_match('/[?&#]gid=([0-9]+)/', $url, $gidMatch)) {
+            $gid = $gidMatch[1];
+        }
+
+        if (preg_match('/\/spreadsheets\/d\/e\/([a-zA-Z0-9-_]+)/', $url, $pubMatch)) {
+            $base = "https://docs.google.com/spreadsheets/d/e/{$pubMatch[1]}/pub?output=csv";
+            return $gid ? "{$base}&gid={$gid}" : $base;
+        }
+
+        if (preg_match('/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/', $url, $idMatch)) {
+            $sheetId = $idMatch[1];
+            $base = "https://docs.google.com/spreadsheets/d/{$sheetId}/export?format=csv";
+            return $gid ? "{$base}&gid={$gid}" : $base;
+        }
+
+        return $url;
+    }
+
+    private function processCsvContent(string $content, int $testId): array
+    {
+        $content = trim($content);
+        if ($content === '') {
+            return [
+                'success' => false,
+                'message' => 'Konten spreadsheet kosong atau tidak dapat diunduh.',
+                'importedCount' => 0,
+            ];
+        }
+
+        $lines = preg_split('/\r\n|\r|\n/', $content);
+        if (empty($lines)) {
+            return [
+                'success' => false,
+                'message' => 'Format file CSV tidak valid atau kosong.',
+                'importedCount' => 0,
+            ];
         }
 
         $firstLine = $lines[0];
@@ -528,9 +676,18 @@ class DashboardController extends Controller
             $separator = ';';
         }
 
+        $rawHeaders = str_getcsv($firstLine, $separator);
+        if (empty($rawHeaders) || count($rawHeaders) < 2) {
+            return [
+                'success' => false,
+                'message' => 'Header kolom spreadsheet tidak valid atau tidak terbaca.',
+                'importedCount' => 0,
+            ];
+        }
+
         $headers = array_map(function ($h) {
             return strtolower(trim(str_replace(['"', "'", "\xEF\xBB\xBF"], '', $h)));
-        }, str_getcsv($firstLine, $separator));
+        }, $rawHeaders);
 
         $emailIndex = -1;
         $scoreIndices = [
@@ -587,7 +744,27 @@ class DashboardController extends Controller
         }
 
         if ($emailIndex === -1) {
-            return back()->with('error', 'Kolom email tidak ditemukan dalam file. Pastikan terdapat kolom email (seperti "Email Resmi Google Workspace Gen-U").');
+            return [
+                'success' => false,
+                'message' => 'Kolom email tidak ditemukan dalam file. Pastikan terdapat kolom email (seperti "Email Resmi Google Workspace Gen-U").',
+                'importedCount' => 0,
+            ];
+        }
+
+        $hasDataRows = false;
+        for ($i = 1; $i < count($lines); $i++) {
+            if (trim($lines[$i]) !== '') {
+                $hasDataRows = true;
+                break;
+            }
+        }
+
+        if (!$hasDataRows) {
+            return [
+                'success' => true,
+                'message' => 'lembar spreadsheet saat ini belum memiliki respon jawaban siswa',
+                'importedCount' => 0,
+            ];
         }
 
         $riasecItemMap = [
@@ -835,7 +1012,7 @@ class DashboardController extends Controller
 
             $mentorName = $mentorIndex !== -1 && !empty($row[$mentorIndex])
                 ? trim($row[$mentorIndex])
-                : 'Bpk. Budi Santoso, M.Psi';
+                : ($user->selected_mentor ?? 'Bpk. Budi Santoso, M.Psi');
 
             $customDimensions = [];
             foreach (['r', 'i', 'a', 's', 'e', 'c'] as $dim) {
@@ -884,13 +1061,18 @@ class DashboardController extends Controller
         }
 
         if ($importedCount === 0) {
-            return back()->with('warning', 'Tidak ada data siswa yang cocok dengan email pada file spreadsheet.');
+            return [
+                'success' => true,
+                'message' => 'terdapat data respon namun belum ada email yang cocok dengan siswa terdaftar',
+                'importedCount' => 0,
+            ];
         }
 
-        $test = PsychometricTest::find($testId);
-        $testName = $test ? $test->name : 'alat tes';
-
-        return back()->with('success', "Berhasil mengimpor skor {$testName} untuk {$importedCount} siswa.");
+        return [
+            'success' => true,
+            'message' => "Berhasil mengimpor skor untuk {$importedCount} siswa.",
+            'importedCount' => $importedCount,
+        ];
     }
 
     public function updateStudentScore(Request $request, int $id): RedirectResponse

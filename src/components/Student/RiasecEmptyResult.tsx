@@ -38,7 +38,7 @@ export default function RiasecEmptyResult({
         </div>
 
         <span className="inline-block px-3 py-1 rounded-full text-xs font-bold text-indigo-700 bg-indigo-50 mb-3 uppercase tracking-wider">
-          Menunggu Rekap Nilai Admin
+          Menunggu Sinkronisasi Spreadsheet
         </span>
 
         <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-3">
@@ -46,7 +46,7 @@ export default function RiasecEmptyResult({
         </h2>
 
         <p className="text-sm text-gray-500 leading-relaxed max-w-lg mx-auto mb-8">
-          Jawaban Google Form kamu sedang diproses dan direkapitulasi oleh Guru/Mentor & Admin. Lembar hasil analisis RIASEC dan rekomendasi jurusan akan otomatis ditampilkan begitu data spreadsheet telah diimpor.
+          Jawaban Google Form kamu telah tersimpan aman di Google Spreadsheet resmi sekolah. Rapor hasil analisis minat bakat dan rekomendasi jurusan akan otomatis tampil di sini segera setelah sinkronisasi data spreadsheet dijalankan oleh Guru atau Admin.
         </p>
 
         <div className="bg-slate-50/80 rounded-2xl p-5 border border-slate-100 max-w-md mx-auto text-left text-xs space-y-2 mb-6">
@@ -70,7 +70,7 @@ export default function RiasecEmptyResult({
 
         <div className="inline-flex items-center gap-2 text-xs text-slate-400">
           <FileSpreadsheet size={16} />
-          <span>Status: Menunggu sinkronisasi berkas oleh administrator</span>
+          <span>Status: Menunggu sinkronisasi berkas Google Spreadsheet</span>
         </div>
       </div>
     </div>
