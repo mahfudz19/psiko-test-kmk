@@ -1,9 +1,11 @@
-import React from 'react'
-import { router } from '@inertiajs/react'
+import React, { useState } from 'react'
+import { Clock } from 'lucide-react'
+import { getDimensionDefaultContent, getScoreLevel } from '@/features/riasec/dimensionProfiles'
 
 export interface RiasecAssessmentData {
   id?: number
   user_id?: number
+  psychometric_test_id?: number
   score_r?: number
   score_i?: number
   score_a?: number
@@ -11,9 +13,12 @@ export interface RiasecAssessmentData {
   score_e?: number
   score_c?: number
   dominant_code?: string
+  status?: string
   mentor_name?: string
-  class_name?: string
-  attendance_number?: string
+  answers?: {
+    dimensions?: Record<string, { desc?: string; majors?: string }>
+    [key: string]: any
+  } | null
   user?: {
     name?: string
     npsn?: string
@@ -21,33 +26,98 @@ export interface RiasecAssessmentData {
   }
 }
 
+interface TestOption {
+  id: number
+  name: string
+  has_score?: boolean
+  is_completed?: boolean
+  [key: string]: any
+}
+
 interface RiasecResultViewProps {
   assessment: RiasecAssessmentData | null
+  assessments?: RiasecAssessmentData[]
+  tests?: TestOption[]
   user?: any
-  isReadOnly?: boolean
+  onBack?: () => void
+  backButtonLabel?: string
 }
 
 export default function RiasecResultView({
   assessment,
+  assessments = [],
+  tests = [],
   user,
-  isReadOnly = false,
+  onBack,
+  backButtonLabel,
 }: RiasecResultViewProps) {
-  const studentName = assessment?.user?.name || user?.name || 'Andi Pratama'
-  const studentNpsn = assessment?.user?.npsn || user?.npsn || '20101111'
-  const studentSchool = assessment?.user?.school || user?.school || 'SMAN 1 Jakarta'
-  const mentor = assessment?.mentor_name || 'Bpk. Budi Santoso, M.Psi'
+  const availableTests: TestOption[] =
+    tests && tests.length > 0
+      ? tests.filter(
+          (t) =>
+            t.is_completed ||
+            assessments.some((a) => a.psychometric_test_id === t.id) ||
+            assessment?.psychometric_test_id === t.id,
+        )
+      : assessments && assessments.length > 0
+      ? assessments.map((a, idx) => ({
+          id: a.psychometric_test_id || a.id || idx + 1,
+          name: `Alat Tes ${idx + 1}`,
+          has_score: Boolean(a.dominant_code || (a.score_r !== undefined && a.score_r !== null)),
+        }))
+      : []
 
-  const scoreR = assessment?.score_r ?? 22
-  const scoreS = assessment?.score_s ?? 22
-  const scoreI = assessment?.score_i ?? 21
-  const scoreE = assessment?.score_e ?? 21
-  const scoreA = assessment?.score_a ?? 20
-  const scoreC = assessment?.score_c ?? 20
+  const [activeTestId, setActiveTestId] = useState<number | null>(() => {
+    const testWithScore = availableTests.find((t) => {
+      const asm = assessments.find((a) => a.psychometric_test_id === t.id)
+      return (
+        (asm && (asm.dominant_code || (asm.score_r !== undefined && asm.score_r !== null))) ||
+        (assessment?.psychometric_test_id === t.id && (assessment.dominant_code || (assessment.score_r !== undefined && assessment.score_r !== null))) ||
+        t.has_score
+      )
+    })
+    if (testWithScore) {
+      return testWithScore.id
+    }
+    if (assessment?.psychometric_test_id) {
+      return assessment.psychometric_test_id
+    }
+    if (assessments && assessments.length > 0 && assessments[0].psychometric_test_id) {
+      return assessments[0].psychometric_test_id
+    }
+    if (availableTests.length > 0) {
+      return availableTests[0].id
+    }
+    return null
+  })
 
-  const dominantCode = (assessment?.dominant_code || 'RSI')
-    .toUpperCase()
-    .split('')
-    .join(' ')
+  const currentAssessment =
+    (assessments && activeTestId
+      ? assessments.find((a) => a.psychometric_test_id === activeTestId)
+      : null) ||
+    (assessment?.psychometric_test_id === activeTestId ? assessment : null) ||
+    (availableTests.length <= 1 ? assessment : null)
+
+  const activeTest = availableTests.find((t) => t.id === activeTestId)
+  const activeTestName = activeTest?.name || 'Alat Tes'
+
+  const isSynced = Boolean(
+    currentAssessment &&
+      (currentAssessment.dominant_code ||
+        (currentAssessment.score_r !== undefined && currentAssessment.score_r !== null))
+  )
+
+  const studentName = currentAssessment?.user?.name || user?.name || 'Andi Pratama'
+  const studentNpsn = currentAssessment?.user?.npsn || user?.npsn || '20101111'
+  const studentSchool = currentAssessment?.user?.school || user?.school || 'SMAN 1 Jakarta'
+  const mentor = currentAssessment?.mentor_name || 'Bpk. Budi Santoso, M.Psi'
+
+  const scoreR = currentAssessment?.score_r ?? 22
+  const scoreS = currentAssessment?.score_s ?? 22
+  const scoreI = currentAssessment?.score_i ?? 21
+  const scoreE = currentAssessment?.score_e ?? 21
+  const scoreA = currentAssessment?.score_a ?? 20
+  const scoreC = currentAssessment?.score_c ?? 20
 
   const dimensions = [
     {
@@ -56,6 +126,8 @@ export default function RiasecResultView({
       score: scoreR,
       color: 'bg-[#10B981]',
       badgeBg: 'bg-[#10B981]',
+      desc: currentAssessment?.answers?.dimensions?.R?.desc || getDimensionDefaultContent('R', scoreR).desc,
+      majors: currentAssessment?.answers?.dimensions?.R?.majors || getDimensionDefaultContent('R', scoreR).majors,
     },
     {
       code: 'S',
@@ -63,13 +135,17 @@ export default function RiasecResultView({
       score: scoreS,
       color: 'bg-[#EF4444]',
       badgeBg: 'bg-[#EF4444]',
+      desc: currentAssessment?.answers?.dimensions?.S?.desc || getDimensionDefaultContent('S', scoreS).desc,
+      majors: currentAssessment?.answers?.dimensions?.S?.majors || getDimensionDefaultContent('S', scoreS).majors,
     },
     {
-      code: 'SAYA',
+      code: 'I',
       name: 'Penyelidikan',
       score: scoreI,
       color: 'bg-[#3B82F6]',
       badgeBg: 'bg-[#3B82F6]',
+      desc: currentAssessment?.answers?.dimensions?.I?.desc || getDimensionDefaultContent('I', scoreI).desc,
+      majors: currentAssessment?.answers?.dimensions?.I?.majors || getDimensionDefaultContent('I', scoreI).majors,
     },
     {
       code: 'E',
@@ -77,6 +153,8 @@ export default function RiasecResultView({
       score: scoreE,
       color: 'bg-[#F59E0B]',
       badgeBg: 'bg-[#F59E0B]',
+      desc: currentAssessment?.answers?.dimensions?.E?.desc || getDimensionDefaultContent('E', scoreE).desc,
+      majors: currentAssessment?.answers?.dimensions?.E?.majors || getDimensionDefaultContent('E', scoreE).majors,
     },
     {
       code: 'A',
@@ -84,6 +162,8 @@ export default function RiasecResultView({
       score: scoreA,
       color: 'bg-[#8B5CF6]',
       badgeBg: 'bg-[#8B5CF6]',
+      desc: currentAssessment?.answers?.dimensions?.A?.desc || getDimensionDefaultContent('A', scoreA).desc,
+      majors: currentAssessment?.answers?.dimensions?.A?.majors || getDimensionDefaultContent('A', scoreA).majors,
     },
     {
       code: 'C',
@@ -91,39 +171,120 @@ export default function RiasecResultView({
       score: scoreC,
       color: 'bg-[#475569]',
       badgeBg: 'bg-[#475569]',
+      desc: currentAssessment?.answers?.dimensions?.C?.desc || getDimensionDefaultContent('C', scoreC).desc,
+      majors: currentAssessment?.answers?.dimensions?.C?.majors || getDimensionDefaultContent('C', scoreC).majors,
     },
   ]
 
-  const topDimensions = [
-    {
-      num: '# 1',
-      name: 'Realistis',
-      desc: 'Senang bekerja dengan alat, benda nyata, dan kegiatan di luar ruangan.',
-      majors: 'Teknik, Pertanian, Konstruksi, Pariwisata',
-    },
-    {
-      num: '# 2',
-      name: 'Sosial',
-      desc: 'Senang berinteraksi, membantu, dan mengajar orang lain.',
-      majors: 'Konseling, Keperawatan, Pendidikan, Humas',
-    },
-    {
-      num: '# 3',
-      name: 'Investigasi',
-      desc: 'Senang mengamati, meneliti, dan memecahkan persoalan.',
-      majors: 'Kedokteran, Biologi, Kimia, Psikologi',
-    },
-  ]
+  const initialDominant = (
+    currentAssessment?.dominant_code ||
+    ''
+  ).replace(/[^A-Za-z]/g, '').toUpperCase()
 
-  const handleReset = () => {
-    if (confirm('Ulangi asesmen minat bakat? Hasil saat ini akan direset.')) {
-      router.post('/student/riasec/reset', {}, { preserveScroll: true })
+  const activeDominantCode = (
+    initialDominant ||
+    [...dimensions].sort((a, b) => b.score - a.score).slice(0, 3).map((d) => d.code).join('')
+  )
+
+  const dominantOrder = activeDominantCode.split('')
+
+  const sortedDimensions = [...dimensions].sort((a, b) => {
+    if (b.score !== a.score) {
+      return b.score - a.score
     }
-  }
+    const idxA = dominantOrder.indexOf(a.code)
+    const idxB = dominantOrder.indexOf(b.code)
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB
+    if (idxA !== -1) return -1
+    if (idxB !== -1) return 1
+    return 0
+  })
+
+  const topDimension = sortedDimensions[0]?.name || 'Realistis'
+  const dominantCode = activeDominantCode.split('').join(' ')
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1.4fr] gap-6">
+      {availableTests.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit">
+          {availableTests.map((t) => {
+            const isActive = activeTestId === t.id
+            const testAssessment = assessments?.find((a) => a.psychometric_test_id === t.id)
+            const isImported = Boolean(
+              (testAssessment &&
+                (testAssessment.dominant_code ||
+                  (testAssessment.score_r !== undefined && testAssessment.score_r !== null))) ||
+                (assessment?.psychometric_test_id === t.id &&
+                  (assessment.dominant_code ||
+                    (assessment.score_r !== undefined && assessment.score_r !== null))) ||
+                t.has_score,
+            )
+
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setActiveTestId(t.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-white text-indigo-700 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <span>{t.name}</span>
+                {isImported ? (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" title="Sudah disinkronkan" />
+                ) : (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 font-medium">
+                    Belum sinkron
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {!isSynced ? (
+        <div className="bg-white rounded-3xl border border-gray-100 p-8 sm:p-12 shadow-sm text-center max-w-2xl mx-auto space-y-4">
+          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+            <Clock size={32} className="animate-pulse" />
+          </div>
+
+          <span className="inline-block px-3 py-1 rounded-full text-xs font-bold text-amber-800 bg-amber-50 uppercase tracking-wider border border-amber-200">
+            Menunggu Sinkronisasi Spreadsheet
+          </span>
+
+          <h3 className="text-xl sm:text-2xl font-extrabold text-gray-900">
+            Hasil {activeTestName} Sedang Diproses
+          </h3>
+
+          <p className="text-sm text-gray-500 leading-relaxed max-w-md mx-auto">
+            Kamu telah menyelesaikan pengisian formulir tes ini. Nilai dan analisis minat bakat akan otomatis muncul di sini segera setelah sinkronisasi data spreadsheet dijalankan oleh Guru atau Admin.
+          </p>
+
+          <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100 max-w-sm mx-auto text-left text-xs space-y-2 mt-4">
+            <div className="flex justify-between py-1 border-b border-slate-200/60">
+              <span className="text-gray-500 font-medium">Alat Tes:</span>
+              <span className="font-bold text-gray-800">{activeTestName}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-slate-200/60">
+              <span className="text-gray-500 font-medium">Nama Siswa:</span>
+              <span className="font-bold text-gray-800">{studentName}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-slate-200/60">
+              <span className="text-gray-500 font-medium">Guru/Mentor:</span>
+              <span className="font-bold text-gray-800">{mentor}</span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span className="text-gray-500 font-medium">Status:</span>
+              <span className="font-semibold text-amber-700">Selesai &middot; Menunggu Tarik Nilai</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1.4fr] gap-6">
         <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm flex flex-col justify-between">
           <div>
             <span className="text-xs font-black uppercase tracking-widest text-indigo-600">
@@ -134,7 +295,7 @@ export default function RiasecResultView({
             </div>
             <p className="text-sm text-gray-600 leading-relaxed max-w-sm">
               Dimensi teratasmu adalah{' '}
-              <strong className="text-gray-900 font-bold">Realistis</strong> . Hasil ini dapat menjadi titik awal studi eksplorasi.
+              <strong className="text-gray-900 font-bold">{topDimension}</strong> . Hasil ini dapat menjadi titik awal studi eksplorasi.
             </p>
           </div>
 
@@ -143,7 +304,7 @@ export default function RiasecResultView({
               {studentName} &middot; NPSN {studentNpsn} &middot; {studentSchool}
             </div>
             <div>
-              Guru BK / pembimbing : {mentor}
+              Guru/Mentor : {mentor}
             </div>
           </div>
         </div>
@@ -184,16 +345,45 @@ export default function RiasecResultView({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {topDimensions.map((dim) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {sortedDimensions.map((dim, idx) => (
           <div
-            key={dim.name}
-            className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm flex flex-col justify-between"
+            key={dim.code}
+            className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
           >
             <div>
-              <h4 className="text-sm font-bold text-indigo-600 mb-2">
-                {dim.num} &middot; {dim.name}
-              </h4>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-6 h-6 rounded-lg ${dim.badgeBg} text-white font-extrabold text-xs flex items-center justify-center shrink-0`}
+                  >
+                    {dim.code}
+                  </span>
+                  <h4 className="text-sm font-bold text-gray-900">
+                    #{idx + 1} &middot; {dim.name}
+                  </h4>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      getScoreLevel(dim.score) === 'high'
+                        ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+                        : getScoreLevel(dim.score) === 'medium'
+                        ? 'text-amber-700 bg-amber-50 border border-amber-200'
+                        : 'text-slate-600 bg-slate-100 border border-slate-200'
+                    }`}
+                  >
+                    {getScoreLevel(dim.score) === 'high'
+                      ? 'Tinggi'
+                      : getScoreLevel(dim.score) === 'medium'
+                      ? 'Sedang'
+                      : 'Rendah'}
+                  </span>
+                  <span className="text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-0.5 rounded-full">
+                    {dim.score}/28
+                  </span>
+                </div>
+              </div>
               <p className="text-xs text-gray-600 leading-relaxed mb-4">
                 {dim.desc}
               </p>
@@ -209,15 +399,17 @@ export default function RiasecResultView({
           </div>
         ))}
       </div>
+    </>
+  )}
 
-      {!isReadOnly && (
+      {onBack && (
         <div className="pt-2">
           <button
             type="button"
-            onClick={handleReset}
-            className="px-6 py-3 rounded-2xl border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold text-sm bg-white shadow-sm transition-all"
+            onClick={onBack}
+            className="px-6 py-3 rounded-2xl border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold text-sm bg-white shadow-sm transition-all cursor-pointer"
           >
-            Pengulangan asesmen
+            {backButtonLabel || 'Kembali'}
           </button>
         </div>
       )}

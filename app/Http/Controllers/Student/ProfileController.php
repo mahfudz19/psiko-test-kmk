@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\Mentor;
+use App\Models\RiasecAssessment;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -13,8 +16,42 @@ class ProfileController extends Controller
 {
     public function index(Request $request): Response
     {
+        $user = $request->user();
+
+        if (!empty($user?->npsn)) {
+            $gurus = User::where('role', 'guru')
+                ->where('npsn', $user->npsn)
+                ->get();
+
+            foreach ($gurus as $guru) {
+                Mentor::firstOrCreate(
+                    ['user_id' => $guru->id],
+                    [
+                        'name' => $guru->name,
+                        'school' => $guru->school ?? ($user->school ?? 'Sekolah'),
+                        'expertise' => 'Bimbingan Konseling & Perencanaan Karir',
+                    ]
+                );
+            }
+
+            $mentors = Mentor::whereHas('user', function ($q) use ($user) {
+                $q->where('npsn', $user->npsn);
+            })->get();
+        } else {
+            $mentors = Mentor::all();
+        }
+
+        $latestAssessment = RiasecAssessment::where('user_id', $user->id)
+            ->whereNotNull('mentor_name')
+            ->latest('updated_at')
+            ->first();
+
+        $currentMentor = $user->selected_mentor ?? ($latestAssessment?->mentor_name ?? ($mentors->first()?->name ?? ''));
+
         return Inertia::render('Student/Profile', [
-            'user' => $request->user(),
+            'user' => $user,
+            'mentors' => $mentors,
+            'currentMentor' => $currentMentor,
         ]);
     }
 
@@ -27,6 +64,7 @@ class ProfileController extends Controller
             'school' => ['sometimes', 'nullable', 'string', 'max:255'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:50'],
             'npsn' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'mentor_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'current_password' => ['nullable', 'string'],
             'new_password' => ['nullable', 'string', 'min:6', 'confirmed'],
         ], [
@@ -53,6 +91,15 @@ class ProfileController extends Controller
         }
         if (array_key_exists('npsn', $validated)) {
             $user->npsn = trim($validated['npsn'] ?? '');
+        }
+        if (array_key_exists('mentor_name', $validated)) {
+            $chosenMentor = trim($validated['mentor_name'] ?? '');
+            if (!empty($chosenMentor)) {
+                $user->selected_mentor = $chosenMentor;
+                RiasecAssessment::where('user_id', $user->id)->update([
+                    'mentor_name' => $chosenMentor,
+                ]);
+            }
         }
 
         $user->save();

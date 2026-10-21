@@ -201,19 +201,31 @@ export default function PsychometricTestForm({
               onChange={(e) => setGformUrl(e.target.value)}
               className="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             />
+            <p className="text-xs text-gray-400 mt-1">
+              Tautan Google Form tempat peserta mengisi kuesioner tes psikometri.
+            </p>
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-800 mb-1.5">
-              URL Spreadsheet Responses (Opsional untuk pelacakan)
+            <label className="block text-sm font-bold text-gray-800 mb-1.5 flex items-center gap-2">
+              <span>
+                URL Google Spreadsheet Tanggapan <span className="text-red-500">*</span>
+              </span>
+              <span className="text-[11px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                Untuk Sinkronisasi Otomatis
+              </span>
             </label>
             <input
               type="url"
-              placeholder="https://docs.google.com/spreadsheets/d/..."
+              required
+              placeholder="https://docs.google.com/spreadsheets/d/.../edit"
               value={spreadsheetUrl}
               onChange={(e) => setSpreadsheetUrl(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-900 placeholder:text-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono"
             />
+            <p className="text-xs text-gray-400 mt-1">
+              Tautan Google Spreadsheet hasil respons Google Form. Pastikan akses sharing diatur ke &quot;Siapa saja yang memiliki link dapat melihat&quot;.
+            </p>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-3">

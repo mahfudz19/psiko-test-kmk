@@ -8,11 +8,15 @@ import StudentRiasecDetail, {
 interface GuruMonitoringProps {
   students: StudentRiasecDetailData[]
   guruNpsn?: string | null
+  guruName?: string | null
+  tests?: any[]
 }
 
 export default function GuruMonitoring({
   students = [],
   guruNpsn,
+  guruName,
+  tests = [],
 }: GuruMonitoringProps) {
   const [selectedStudent, setSelectedStudent] = useState<StudentRiasecDetailData | null>(null)
 
@@ -21,17 +25,24 @@ export default function GuruMonitoring({
       {selectedStudent ? (
         <StudentRiasecDetail
           student={selectedStudent}
+          tests={tests}
           onBack={() => setSelectedStudent(null)}
+          canEdit={false}
         />
       ) : (
         <div className="bg-white rounded-2xl border border-gray-200/80 p-6 md:p-8 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100">
-            <h1 className="text-xl font-bold text-gray-900">
-              Pemantauan Tes Minat Bakat
-            </h1>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">
+                Pemantauan Tes Minat Bakat
+              </h1>
+              <p className="text-xs text-gray-500 mt-1">
+                Menampilkan siswa binaan yang memilih Anda sebagai guru/mentor pembimbing. Data hasil tes otomatis disinkronkan langsung dari Google Spreadsheet formulir tes sekolah.
+              </p>
+            </div>
             {guruNpsn ? (
               <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-100 self-start sm:self-auto">
-                Filter sekolah - NPSN {guruNpsn}
+                Siswa Binaan: {guruName || 'Guru'} (NPSN {guruNpsn})
               </span>
             ) : (
               <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 self-start sm:self-auto">
@@ -55,7 +66,7 @@ export default function GuruMonitoring({
                   <tr>
                     <td colSpan={4} className="py-8 text-center text-gray-400">
                       {guruNpsn
-                        ? 'Belum ada data siswa terdaftar dengan NPSN yang sama.'
+                        ? 'Belum ada siswa yang memilih Anda sebagai guru pembimbing saat tes minat bakat, atau data tes baru belum disinkronkan dari Google Spreadsheet.'
                         : 'Silakan lengkapi NPSN Sekolah Anda terlebih dahulu untuk memantau siswa.'}
                     </td>
                   </tr>
@@ -86,11 +97,11 @@ export default function GuruMonitoring({
                           </span>
                         </td>
                         <td className="py-4 px-4 text-center">
-                          {isCompleted ? (
+                          {(student.importedCount ?? 0) > 0 || (student.completedCount ?? 0) > 0 || student.assessment ? (
                             <button
                               type="button"
                               onClick={() => setSelectedStudent(student)}
-                              className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                              className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer"
                             >
                               Lihat Detail
                             </button>

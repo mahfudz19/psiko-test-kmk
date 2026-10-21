@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { router } from '@inertiajs/react'
 import PortalLayout from '../../Layouts/PortalLayout'
-import { X } from 'lucide-react'
+import { X, Bookmark } from 'lucide-react'
 import { studentMenuItems } from '../../config/navigation'
 
 interface MajorItem {
@@ -26,6 +27,7 @@ interface CategoryItem {
 interface StudentJurusanProps {
   majors: MajorItem[]
   categories?: CategoryItem[]
+  savedMajorIds?: number[]
 }
 
 const formatList = (items?: string[] | string | null): string[] => {
@@ -41,10 +43,14 @@ const MiniCard = ({
   p,
   isProfesi,
   onClick,
+  isBookmarked,
+  onBookmark,
 }: {
   p?: MajorItem
   isProfesi: boolean
   onClick: () => void
+  isBookmarked?: boolean
+  onBookmark?: (e: React.MouseEvent) => void
 }) => (
   <div
     onClick={onClick}
@@ -56,15 +62,29 @@ const MiniCard = ({
   >
     <div className="flex justify-between items-center mb-[7px] gap-2">
       <span className="font-bold text-[14px] text-[#152C2A]">{p?.title}</span>
-      <span
-        className={`text-[10px] font-bold px-[7px] py-[2px] rounded shrink-0 border ${
-          isProfesi
-            ? 'text-[#8A5A18] bg-[#F2E3C6] border-[#8A5A18]'
-            : 'text-[#2F6F62] bg-[#DEEDE7] border-[#2F6F62]'
-        } font-mono tracking-widest`}
-      >
-        {p?.jenjang || 'S1'}
-      </span>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span
+          className={`text-[10px] font-bold px-[7px] py-[2px] rounded border ${
+            isProfesi
+              ? 'text-[#8A5A18] bg-[#F2E3C6] border-[#8A5A18]'
+              : 'text-[#2F6F62] bg-[#DEEDE7] border-[#2F6F62]'
+          } font-mono tracking-widest`}
+        >
+          {p?.jenjang || 'S1'}
+        </span>
+        {p && onBookmark && (
+          <button
+            type="button"
+            onClick={onBookmark}
+            className="p-1 rounded-full hover:bg-[#CBD5CC]/40 transition-colors"
+          >
+            <Bookmark
+              size={13}
+              className={isBookmarked ? 'fill-[#C0812A] text-[#C0812A]' : 'text-[#879B96]'}
+            />
+          </button>
+        )}
+      </div>
     </div>
     <p className="text-[12.5px] text-[#3E5551] leading-relaxed m-0">{p?.teaser || p?.description}</p>
     {isProfesi && (
@@ -78,10 +98,33 @@ const MiniCard = ({
 export default function StudentJurusan({
   majors = [],
   categories = [],
+  savedMajorIds = [],
 }: StudentJurusanProps) {
   const [filter, setFilter] = useState<string>('all')
   const [selected, setSelected] = useState<MajorItem | null>(null)
   const [tab, setTab] = useState<'apa' | 'kuliah' | 'karir'>('apa')
+  const [bookmarkedIds, setBookmarkedIds] = useState<number[]>(savedMajorIds)
+
+  useEffect(() => {
+    setBookmarkedIds(savedMajorIds)
+  }, [savedMajorIds])
+
+  const handleToggleBookmark = (e: React.MouseEvent, majorId: number) => {
+    e.stopPropagation()
+    const isSaved = bookmarkedIds.includes(majorId)
+    setBookmarkedIds((prev) =>
+      isSaved ? prev.filter((id) => id !== majorId) : [...prev, majorId]
+    )
+
+    router.post(
+      `/student/jurusan/${majorId}/bookmark`,
+      {},
+      {
+        preserveScroll: true,
+        onError: () => setBookmarkedIds(savedMajorIds),
+      }
+    )
+  }
 
   const categoryNamesFromMajors = majors
     .map((m) => m.category || (m.group === 'kesehatan' ? 'Kesehatan' : 'Saintek'))
@@ -237,6 +280,18 @@ export default function StudentJurusan({
             >
               Semua program
             </button>
+            <button
+              type="button"
+              onClick={() => setFilter('saved')}
+              className={`px-4 py-1.5 rounded-full text-[13.5px] font-medium transition-all border font-sans inline-flex items-center gap-1.5 ${
+                filter === 'saved'
+                  ? 'bg-[#C0812A] text-white border-[#C0812A]'
+                  : 'bg-[#FBFAF4] text-[#C0812A] border-[#CBD5CC] hover:border-[#C0812A]'
+              }`}
+            >
+              <Bookmark size={13} className={filter === 'saved' ? 'fill-white' : 'fill-[#C0812A]'} />
+              Disimpan ({bookmarkedIds.length})
+            </button>
             {distinctCategories.map((catName) => (
               <button
                 key={catName}
@@ -253,6 +308,67 @@ export default function StudentJurusan({
             ))}
           </div>
         </div>
+
+        {filter === 'saved' && (
+          <section className="max-w-5xl mx-auto mb-16 animate-in fade-in duration-500 relative z-10">
+            <div className="flex items-baseline gap-3 mb-6">
+              <div className="w-3 h-3 rounded-[3px] bg-[#C0812A]"></div>
+              <h2 className="text-2xl font-bold text-[#152C2A] m-0 font-sans">Jurusan Tersimpan</h2>
+              <span className="text-sm text-[#3E5551] font-sans">
+                {bookmarkedIds.length} Program Studi Favorit
+              </span>
+            </div>
+            {bookmarkedIds.length === 0 ? (
+              <div className="bg-[#FBFAF4] border border-[#CBD5CC] rounded-[14px] p-12 text-center">
+                <Bookmark className="mx-auto text-[#879B96] mb-3" size={32} />
+                <h3 className="text-lg font-bold text-[#152C2A] mb-1">Belum ada jurusan yang disimpan</h3>
+                <p className="text-sm text-[#3E5551] max-w-md mx-auto">
+                  Klik ikon bookmark pada jurusan yang menarik perhatianmu untuk menyimpannya di sini dan melacak target eksplorasi.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {majors
+                  .filter((m) => bookmarkedIds.includes(m.id))
+                  .map((p) => (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        setSelected(p)
+                        setTab('apa')
+                      }}
+                      className="relative bg-[#FBFAF4] border border-[#CBD5CC] rounded-[14px] p-[22px] px-[20px] pb-[20px] cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_18px_-14px_rgba(21,44,42,0.35)] hover:border-[#C0812A] group"
+                    >
+                      <div className="flex justify-between items-start mb-[14px]">
+                        <span className="text-[10px] font-bold px-[8px] py-[3px] rounded-[5px] border -rotate-3 text-[#C0812A] bg-[#FAF1E4] border-[#C0812A] font-mono tracking-widest">
+                          {p.jenjang || 'S1'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleBookmark(e, p.id)}
+                          className="p-1.5 rounded-full hover:bg-[#CBD5CC]/40 transition-colors"
+                        >
+                          <Bookmark size={16} className="fill-[#C0812A] text-[#C0812A]" />
+                        </button>
+                      </div>
+                      <h3 className="text-[19px] font-bold text-[#152C2A] mb-2 font-sans leading-tight">
+                        {p.title}
+                      </h3>
+                      <p className="text-[14px] text-[#3E5551] mb-[18px] leading-relaxed line-clamp-3">
+                        {p.teaser || p.description}
+                      </p>
+                      <span className="text-[12.5px] font-bold text-[#C0812A] flex items-center gap-[6px] font-sans">
+                        Buka profil rinci
+                        <svg viewBox="0 0 12 12" fill="none" className="w-3 h-3 transition-transform group-hover:translate-x-[3px]">
+                          <path d="M2 6H10M10 6L6.5 2.5M10 6L6.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {distinctCategories.map((catName) => {
           if (filter !== 'all' && filter !== catName) return null
@@ -308,6 +424,8 @@ export default function StudentJurusan({
                             <MiniCard
                               p={vokasi}
                               isProfesi={false}
+                              isBookmarked={vokasi ? bookmarkedIds.includes(vokasi.id) : false}
+                              onBookmark={vokasi ? (e) => handleToggleBookmark(e, vokasi.id) : undefined}
                               onClick={() => {
                                 if (vokasi) {
                                   setSelected(vokasi)
@@ -327,6 +445,8 @@ export default function StudentJurusan({
                             <MiniCard
                               p={sarjana}
                               isProfesi={false}
+                              isBookmarked={sarjana ? bookmarkedIds.includes(sarjana.id) : false}
+                              onBookmark={sarjana ? (e) => handleToggleBookmark(e, sarjana.id) : undefined}
                               onClick={() => {
                                 if (sarjana) {
                                   setSelected(sarjana)
@@ -347,6 +467,8 @@ export default function StudentJurusan({
                             <MiniCard
                               p={profesi}
                               isProfesi={true}
+                              isBookmarked={profesi ? bookmarkedIds.includes(profesi.id) : false}
+                              onBookmark={profesi ? (e) => handleToggleBookmark(e, profesi.id) : undefined}
                               onClick={() => {
                                 if (profesi) {
                                   setSelected(profesi)
@@ -376,6 +498,16 @@ export default function StudentJurusan({
                           <span className="text-[10px] font-bold px-[8px] py-[3px] rounded-[5px] border -rotate-3 text-[#2F6F62] bg-[#DEEDE7] border-[#2F6F62] font-mono tracking-widest">
                             {p.jenjang || 'S1'}
                           </span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleBookmark(e, p.id)}
+                            className="p-1.5 rounded-full hover:bg-[#CBD5CC]/40 transition-colors"
+                          >
+                            <Bookmark
+                              size={16}
+                              className={bookmarkedIds.includes(p.id) ? "fill-[#C0812A] text-[#C0812A]" : "text-[#879B96] hover:text-[#152C2A]"}
+                            />
+                          </button>
                         </div>
                         <h3 className="text-[19px] font-bold text-[#152C2A] mb-2 font-sans leading-tight">
                           {p.title}
@@ -422,12 +554,24 @@ export default function StudentJurusan({
                     className="relative bg-[#FBFAF4] border border-[#CBD5CC] rounded-[14px] p-[22px] px-[20px] pb-[20px] cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_18px_-14px_rgba(21,44,42,0.35)] hover:border-[#3E5551] group"
                   >
                     <div className="flex justify-between items-start mb-[14px]">
-                      <span className="text-[10px] font-bold px-[8px] py-[3px] rounded-[5px] border -rotate-3 text-[#38507C] bg-[#E1E7F2] border-[#38507C] font-mono tracking-widest">
-                        {p.jenjang || 'S1'}
-                      </span>
-                      <span className="text-[11px] text-[#3E5551] font-mono opacity-70">
-                        N&deg;{String(i + 1).padStart(2, '0')}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold px-[8px] py-[3px] rounded-[5px] border -rotate-3 text-[#38507C] bg-[#E1E7F2] border-[#38507C] font-mono tracking-widest">
+                          {p.jenjang || 'S1'}
+                        </span>
+                        <span className="text-[11px] text-[#3E5551] font-mono opacity-70">
+                          N&deg;{String(i + 1).padStart(2, '0')}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleBookmark(e, p.id)}
+                        className="p-1.5 rounded-full hover:bg-[#CBD5CC]/40 transition-colors"
+                      >
+                        <Bookmark
+                          size={16}
+                          className={bookmarkedIds.includes(p.id) ? "fill-[#C0812A] text-[#C0812A]" : "text-[#879B96] hover:text-[#152C2A]"}
+                        />
+                      </button>
                     </div>
                     <h3 className="text-[19px] font-bold text-[#152C2A] mb-2 font-sans leading-tight">{p.title}</h3>
                     <p className="text-[14px] text-[#3E5551] mb-[18px] leading-relaxed line-clamp-3">
@@ -457,15 +601,30 @@ export default function StudentJurusan({
             >
               <div className="p-6 md:p-8 border-b border-[#CBD5CC] shrink-0">
                 <div className="flex justify-between items-start mb-4">
-                  <span
-                    className={`text-[10px] font-bold px-[8px] py-[3px] rounded-[5px] border -rotate-3 font-mono tracking-widest ${
-                      selected.group === 'kesehatan' || (selected.category && selected.category.toLowerCase().includes('kesehatan'))
-                        ? 'text-[#2F6F62] bg-[#DEEDE7] border-[#2F6F62]'
-                        : 'text-[#38507C] bg-[#E1E7F2] border-[#38507C]'
-                    }`}
-                  >
-                    {selected.category || selected.jenjang || 'S1'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-[10px] font-bold px-[8px] py-[3px] rounded-[5px] border -rotate-3 font-mono tracking-widest ${
+                        selected.group === 'kesehatan' || (selected.category && selected.category.toLowerCase().includes('kesehatan'))
+                          ? 'text-[#2F6F62] bg-[#DEEDE7] border-[#2F6F62]'
+                          : 'text-[#38507C] bg-[#E1E7F2] border-[#38507C]'
+                      }`}
+                    >
+                      {selected.category || selected.jenjang || 'S1'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => handleToggleBookmark(e, selected.id)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-full border border-[#CBD5CC] bg-[#FBFAF4] hover:bg-[#EEF3EF] transition-colors"
+                    >
+                      <Bookmark
+                        size={14}
+                        className={bookmarkedIds.includes(selected.id) ? "fill-[#C0812A] text-[#C0812A]" : "text-[#879B96]"}
+                      />
+                      <span className="font-sans text-[11px] text-[#152C2A] font-medium">
+                        {bookmarkedIds.includes(selected.id) ? 'Tersimpan' : 'Simpan'}
+                      </span>
+                    </button>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setSelected(null)}

@@ -13,14 +13,17 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
+  UserCheck,
 } from 'lucide-react'
 
 interface NpsnFormCardProps {
   user: any
   role: 'siswa' | 'guru' | 'admin'
+  mentors?: { id: number; name: string; school?: string }[]
+  currentMentor?: string
 }
 
-export default function NpsnFormCard({ user, role }: NpsnFormCardProps) {
+export default function NpsnFormCard({ user, role, mentors = [], currentMentor }: NpsnFormCardProps) {
   const { errors, flash } = usePage<any>().props
 
   const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile')
@@ -29,6 +32,9 @@ export default function NpsnFormCard({ user, role }: NpsnFormCardProps) {
   const [school, setSchool] = useState(user?.school && user.school !== '-' ? user.school : '')
   const [npsn, setNpsn] = useState(user?.npsn && user.npsn !== '-' ? user.npsn : '')
   const [phone, setPhone] = useState(user?.phone && user.phone !== '-' ? user.phone : '')
+  const [mentorName, setMentorName] = useState(
+    currentMentor || user?.selected_mentor || (mentors.length > 0 ? mentors[0].name : '')
+  )
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -40,20 +46,26 @@ export default function NpsnFormCard({ user, role }: NpsnFormCardProps) {
 
   const endpoint = role === 'siswa' ? '/student/profile' : '/guru/profile'
   const roleSubtitle =
-    role === 'guru' ? 'Guru BK / Konselor Sekolah' : `Siswa ${user?.school || 'Sekolah Mitra'}`
+    role === 'guru' ? 'Guru/Mentor' : `Siswa ${user?.school || 'Sekolah Mitra'}`
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault()
     setProcessing(true)
 
+    const payload: Record<string, any> = {
+      name: name.trim(),
+      school: school.trim(),
+      npsn: npsn.trim(),
+      phone: phone.trim(),
+    }
+
+    if (role === 'siswa') {
+      payload.mentor_name = mentorName.trim()
+    }
+
     router.post(
       endpoint,
-      {
-        name: name.trim(),
-        school: school.trim(),
-        npsn: npsn.trim(),
-        phone: phone.trim(),
-      },
+      payload,
       {
         preserveScroll: true,
         onFinish: () => setProcessing(false),
@@ -253,6 +265,43 @@ export default function NpsnFormCard({ user, role }: NpsnFormCardProps) {
                   </p>
                 </div>
               </div>
+
+              {role === 'siswa' && (
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5 flex items-center gap-1.5">
+                    <UserCheck size={14} className="text-indigo-600" /> GURU / MENTOR PEMBIMBING TES MINAT
+                  </label>
+                  <p className="text-xs text-gray-500 mb-3 leading-relaxed">
+                    Pilih guru atau mentor yang akan mendampingi dan memantau perkembangan hasil tes minat bakat (RIASEC) Anda di menu Monitoring Guru.
+                  </p>
+                  {mentors && mentors.length > 0 ? (
+                    <select
+                      value={mentorName}
+                      onChange={(e) => setMentorName(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
+                    >
+                      <option value="">-- Pilih Guru / Pembimbing --</option>
+                      {mentors.map((m) => (
+                        <option key={m.id} value={m.name}>
+                          {m.name} {m.school ? `(${m.school})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3 font-medium">
+                      Belum ada guru/mentor yang terdaftar dengan NPSN yang sama ({npsn || user?.npsn || '-'}). Anda tetap dapat mengisi nama mentor secara manual jika diperlukan:
+                      <input
+                        type="text"
+                        value={mentorName}
+                        onChange={(e) => setMentorName(e.target.value)}
+                        placeholder="Ketik nama Guru / Mentor"
+                        className="mt-2 w-full px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-sm text-gray-900 outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  )}
+                  {errors?.mentor_name && <p className="text-xs text-rose-600 mt-1">{errors.mentor_name}</p>}
+                </div>
+              )}
 
               <div className="flex justify-end pt-2">
                 <button

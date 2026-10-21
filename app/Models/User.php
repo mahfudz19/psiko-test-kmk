@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -24,6 +25,7 @@ class User extends Authenticatable
         'phone',
         'npsn',
         'status',
+        'selected_mentor',
     ];
 
     protected $hidden = [
@@ -52,5 +54,10 @@ class User extends Authenticatable
     public function mentor(): HasOne
     {
         return $this->hasOne(Mentor::class);
+    }
+
+    public function savedMajors(): BelongsToMany
+    {
+        return $this->belongsToMany(Major::class, 'saved_majors')->withTimestamps();
     }
 }

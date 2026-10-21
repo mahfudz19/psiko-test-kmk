@@ -151,6 +151,12 @@ class AuthController extends Controller
             ]);
         }
 
+        if ($user->status !== 'active') {
+            return redirect()->route('login')->withErrors([
+                'email' => 'Akun Anda dinonaktifkan atau belum aktif. Silakan hubungi Administrator.',
+            ]);
+        }
+
         $user->update(['google_id' => $googleUser->getId()]);
         Auth::login($user, true);
         request()->session()->regenerate();
@@ -227,7 +233,7 @@ class AuthController extends Controller
 
         return redirect()->route('login')->with(
             'success',
-            "Pendaftaran berhasil! Nomor ID Registrasi Anda: {$registrationId}. Akun Anda sedang menunggu verifikasi Admin. Email Google Workspace dan password akan dibuatkan oleh Admin dan dikirimkan ke email pribadi Anda ({$validated['email']})."
+            "Pendaftaran berhasil! Nomor ID Registrasi Anda: {$registrationId}. Akun Anda sedang menunggu verifikasi oleh Admin."
         );
     }
 

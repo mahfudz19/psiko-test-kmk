@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Guru;
 
 use App\Http\Controllers\Controller;
 use App\Models\MentorBooking;
+use App\Models\PsychometricTest;
 use App\Models\RiasecAssessment;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
@@ -16,27 +18,134 @@ class DashboardController extends Controller
     public function index(Request $request): Response
     {
         $guru = $request->user();
-        if (empty($guru?->npsn)) {
+        $hasNpsn = !empty($guru?->npsn);
+
+        if (!$hasNpsn) {
             return Inertia::render('Guru/Dashboard', [
+                'hasNpsn' => false,
                 'stats' => [
                     'students' => 0,
                     'tests' => 0,
                     'pendingSessions' => 0,
+                    'schoolName' => $guru?->school ?? '-',
+                    'npsn' => '-',
                 ],
+                'activities' => [],
+                'upcomingSessions' => [],
             ]);
         }
 
-        $studentIds = User::where('role', 'siswa')->where('npsn', $guru->npsn)->pluck('id');
+        $guruNames = array_unique(array_filter([trim($guru->name), trim($guru->mentor?->name ?? '')]));
+
+        $assignedStudentsQuery = User::where('role', 'siswa')
+            ->where('npsn', $guru->npsn)
+            ->where(function ($q) use ($guruNames) {
+                $q->whereHas('riasecAssessments', function ($sub) use ($guruNames) {
+                    $sub->whereIn('mentor_name', $guruNames);
+                })->orWhereIn('selected_mentor', $guruNames);
+            });
+
+        $studentIds = $assignedStudentsQuery->pluck('id');
         $studentsCount = $studentIds->count();
-        $testsCount = RiasecAssessment::whereIn('user_id', $studentIds)->count();
-        $pendingSessionsCount = MentorBooking::whereIn('student_id', $studentIds)->where('status', 'pending')->count();
+        $completedTestsCount = RiasecAssessment::whereIn('user_id', $studentIds)
+            ->whereIn('mentor_name', $guruNames)
+            ->where('status', 'selesai')
+            ->count();
+        $pendingSessionsCount = MentorBooking::whereHas('student', function ($q) use ($guru) {
+            $q->where('npsn', $guru->npsn);
+        })->where('status', 'pending')->count();
+
+        $upcomingSessions = MentorBooking::whereHas('student', function ($q) use ($guru) {
+                $q->where('npsn', $guru->npsn);
+            })
+            ->with(['student', 'mentor'])
+            ->where('booking_date', '>=', now()->toDateString())
+            ->whereIn('status', ['approved', 'pending'])
+            ->orderBy('booking_date')
+            ->orderBy('booking_time')
+            ->take(4)
+            ->get()
+            ->map(function ($b) {
+                $date = Carbon::parse($b->booking_date);
+                $formattedDate = $date->isToday()
+                    ? 'Hari ini'
+                    : ($date->isTomorrow() ? 'Besok' : $date->translatedFormat('d M Y'));
+
+                return [
+                    'id' => $b->id,
+                    'student_name' => $b->student?->name ?? 'Siswa',
+                    'mentor_name' => $b->mentor?->name ?? 'Mentor',
+                    'time_string' => "{$formattedDate}, {$b->booking_time} WITA",
+                    'topic' => $b->topic ?? 'Konsultasi Bimbingan Karier',
+                    'status' => $b->status,
+                ];
+            });
+
+        $testActivities = RiasecAssessment::whereIn('user_id', $studentIds)
+            ->whereIn('mentor_name', $guruNames)
+            ->where('status', 'selesai')
+            ->with('user')
+            ->latest('updated_at')
+            ->take(4)
+            ->get()
+            ->map(function ($a) {
+                return [
+                    'timestamp' => $a->updated_at?->timestamp ?? 0,
+                    'text' => ($a->user?->name ?? 'Siswa') . ' menyelesaikan Tes Minat Bakat (Kode: ' . ($a->dominant_code ?? '-') . ')',
+                    'time' => $a->updated_at?->diffForHumans() ?? '-',
+                    'type' => 'test',
+                    'href' => '/guru/monitoring',
+                ];
+            });
+
+        $bookingActivities = MentorBooking::whereHas('student', function ($q) use ($guru) {
+                $q->where('npsn', $guru->npsn);
+            })
+            ->with('student')
+            ->latest('created_at')
+            ->take(4)
+            ->get()
+            ->map(function ($b) {
+                return [
+                    'timestamp' => $b->created_at?->timestamp ?? 0,
+                    'text' => ($b->student?->name ?? 'Siswa') . ' mengajukan sesi mentoring konsultasi karier',
+                    'time' => $b->created_at?->diffForHumans() ?? '-',
+                    'type' => 'mentoring',
+                    'href' => '/guru/sesi-mentoring',
+                ];
+            });
+
+        $studentActivities = $assignedStudentsQuery
+            ->latest('created_at')
+            ->take(4)
+            ->get()
+            ->map(function ($u) {
+                return [
+                    'timestamp' => $u->created_at?->timestamp ?? 0,
+                    'text' => $u->name . ' terdaftar sebagai siswa baru',
+                    'time' => $u->created_at?->diffForHumans() ?? '-',
+                    'type' => 'student',
+                    'href' => '/guru/monitoring',
+                ];
+            });
+
+        $allActivities = $testActivities->concat($bookingActivities)->concat($studentActivities)
+            ->sortByDesc('timestamp')
+            ->take(6)
+            ->values()
+            ->all();
 
         return Inertia::render('Guru/Dashboard', [
+            'hasNpsn' => true,
             'stats' => [
                 'students' => $studentsCount,
-                'tests' => $testsCount,
+                'tests' => $completedTestsCount,
                 'pendingSessions' => $pendingSessionsCount,
+                'schoolName' => $guru->school ?? '-',
+                'npsn' => $guru->npsn,
             ],
+            'activities' => $allActivities,
+            'upcomingSessions' => $upcomingSessions,
         ]);
     }
 
@@ -47,30 +156,65 @@ class DashboardController extends Controller
             return Inertia::render('Guru/Monitoring', [
                 'students' => [],
                 'guruNpsn' => null,
+                'tests' => [],
             ]);
         }
 
+        $tests = PsychometricTest::where('is_active', true)->orderBy('order_num')->get();
+        $totalActiveTests = $tests->count();
+
+        $guruNames = array_unique(array_filter([trim($guru->name), trim($guru->mentor?->name ?? '')]));
+
         $students = User::where('role', 'siswa')
             ->where('npsn', $guru->npsn)
-            ->with(['riasecAssessments' => fn ($q) => $q->latest()])
+            ->where(function ($q) use ($guruNames) {
+                $q->whereHas('riasecAssessments', function ($sub) use ($guruNames) {
+                    $sub->whereIn('mentor_name', $guruNames);
+                })->orWhereIn('selected_mentor', $guruNames);
+            })
+            ->with(['riasecAssessments' => function ($q) use ($guruNames) {
+                $q->whereIn('mentor_name', $guruNames)->latest();
+            }])
             ->get()
-            ->map(function ($student) {
-                $latest = $student->riasecAssessments->first();
-                $isCompleted = $latest && $latest->status === 'selesai';
+            ->map(function ($student) use ($tests, $totalActiveTests, $guru) {
+                $assessments = $student->riasecAssessments;
+                $completedAssessments = $assessments->where('status', 'selesai')->filter(fn ($a) => !empty($a->dominant_code));
+                $completedTestIds = $completedAssessments->pluck('psychometric_test_id')->unique()->toArray();
+                $completedCount = count($completedTestIds);
+                $allCompleted = $totalActiveTests > 0 && $completedCount >= $totalActiveTests;
+                $activeAssessment = $completedAssessments->first() ?? $assessments->first();
+
+                $importedTests = $tests->map(function ($t) use ($completedTestIds) {
+                    return [
+                        'id' => $t->id,
+                        'name' => $t->name,
+                        'is_imported' => in_array($t->id, $completedTestIds),
+                    ];
+                })->values()->all();
+
                 return [
                     'id' => $student->id,
                     'name' => $student->name,
                     'npsn' => $student->npsn ?? '-',
                     'school' => $student->school ?? '-',
-                    'testStatus' => $isCompleted ? 'Selesai' : 'Belum Selesai',
-                    'dominantCode' => $latest?->dominant_code ?? '-',
-                    'assessment' => $latest,
+                    'testStatus' => $allCompleted ? 'Selesai' : ($completedCount > 0 ? "Belum Selesai ({$completedCount}/{$totalActiveTests})" : 'Belum Selesai'),
+                    'isCompleted' => $allCompleted,
+                    'completedCount' => $completedCount,
+                    'totalTests' => $totalActiveTests,
+                    'importedCount' => $completedCount,
+                    'imported_tests' => $importedTests,
+                    'dominantCode' => $activeAssessment?->dominant_code ?? '-',
+                    'mentor_name' => $activeAssessment?->mentor_name ?? ($student->selected_mentor ?? $guru->name),
+                    'assessment' => $activeAssessment,
+                    'assessments' => $completedAssessments->values()->all(),
                 ];
             });
 
         return Inertia::render('Guru/Monitoring', [
             'students' => $students,
             'guruNpsn' => $guru->npsn,
+            'guruName' => $guru->name,
+            'tests' => $tests,
         ]);
     }
 

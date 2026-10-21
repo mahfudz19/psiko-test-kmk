@@ -36,6 +36,7 @@ Route::prefix('student')->name('student.')->middleware(['auth', 'role:siswa'])->
     Route::post('/riasec/complete', [StudentRiasecController::class, 'complete'])->name('riasec.complete');
     Route::post('/riasec/reset', [StudentRiasecController::class, 'reset'])->name('riasec.reset');
     Route::get('/jurusan', [StudentMajorController::class, 'index'])->name('jurusan');
+    Route::post('/jurusan/{id}/bookmark', [StudentMajorController::class, 'toggleBookmark'])->name('jurusan.bookmark');
     Route::get('/simulasi-pmb', [StudentPmbController::class, 'index'])->name('simulasi-pmb');
     Route::get('/simulasi-kuliah', [CampusLifeController::class, 'index'])->name('simulasi-kuliah');
     Route::get('/booking', [StudentMentoringController::class, 'index'])->name('booking');
@@ -69,7 +70,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::delete('/input-jurusan/{id}', [AdminDashboardController::class, 'destroyJurusan'])->name('input_jurusan.destroy');
     Route::post('/kategori-jurusan', [AdminDashboardController::class, 'storeCategory'])->name('kategori_jurusan.store');
     Route::put('/kategori-jurusan/{id}', [AdminDashboardController::class, 'updateCategory'])->name('kategori_jurusan.update');
-    Route::delete('/kategori-jurusan/{id}', [AdminDashboardController::class, 'destroyCategory'])->name('kategori_jurusan.destroy');
+    Route::get('/monitoring-tes', [AdminDashboardController::class, 'monitoringTes'])->name('monitoring_tes');
+    Route::post('/monitoring-tes/import', [AdminDashboardController::class, 'importScores'])->name('monitoring_tes.import');
+    Route::post('/monitoring-tes/sync-spreadsheet', [AdminDashboardController::class, 'syncSpreadsheet'])->name('monitoring_tes.sync_spreadsheet');
+    Route::put('/monitoring-tes/{id}', [AdminDashboardController::class, 'updateStudentScore'])->name('monitoring_tes.update');
 });
 
 Route::fallback(function () {
