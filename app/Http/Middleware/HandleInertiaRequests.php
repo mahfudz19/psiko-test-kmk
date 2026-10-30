@@ -30,6 +30,8 @@ class HandleInertiaRequests extends Middleware
                     'phone' => $request->user()->phone,
                     'npsn' => $request->user()->npsn,
                     'status' => $request->user()->status,
+                    'avatar' => $request->user()->avatar,
+                    'has_reviewed' => \App\Models\Testimonial::where('user_id', $request->user()->id)->exists(),
                 ] : null,
             ],
             'flash' => [

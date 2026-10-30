@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { router, usePage } from '@inertiajs/react'
 import {
   Mail,
@@ -14,6 +14,9 @@ import {
   EyeOff,
   AlertCircle,
   UserCheck,
+  Camera,
+  Trash2,
+  Loader2,
 } from 'lucide-react'
 
 interface NpsnFormCardProps {
@@ -36,6 +39,20 @@ export default function NpsnFormCard({ user, role, mentors = [], currentMentor }
     currentMentor || user?.selected_mentor || (mentors.length > 0 ? mentors[0].name : '')
   )
 
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar || null)
+  const [avatarRemoved, setAvatarRemoved] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+
+  useEffect(() => {
+    if (user?.avatar) {
+      setAvatarPreview(user.avatar)
+    } else {
+      setAvatarPreview(null)
+    }
+  }, [user?.avatar])
+
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [newPasswordConfirmation, setNewPasswordConfirmation] = useState('')
@@ -47,6 +64,52 @@ export default function NpsnFormCard({ user, role, mentors = [], currentMentor }
   const endpoint = role === 'siswa' ? '/student/profile' : '/guru/profile'
   const roleSubtitle =
     role === 'guru' ? 'Guru/Mentor' : `Siswa ${user?.school || 'Sekolah Mitra'}`
+
+  const getInitials = (val?: string) => {
+    if (!val) return 'U'
+    const parts = val.trim().split(/\s+/)
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase()
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  }
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setAvatarFile(file)
+    setAvatarPreview(URL.createObjectURL(file))
+    setAvatarRemoved(false)
+    setUploadingAvatar(true)
+
+    router.post(
+      endpoint,
+      { avatar: file },
+      {
+        preserveScroll: true,
+        forceFormData: true,
+        onFinish: () => setUploadingAvatar(false),
+      }
+    )
+  }
+
+  const handleRemoveAvatar = () => {
+    setAvatarFile(null)
+    setAvatarPreview(null)
+    setAvatarRemoved(true)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+    setUploadingAvatar(true)
+
+    router.post(
+      endpoint,
+      { avatar: '' },
+      {
+        preserveScroll: true,
+        onFinish: () => setUploadingAvatar(false),
+      }
+    )
+  }
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault()
@@ -98,32 +161,104 @@ export default function NpsnFormCard({ user, role, mentors = [], currentMentor }
 
   return (
     <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden max-w-3xl">
-      <div className="h-32 sm:h-36 bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-600 w-full relative">
+      <div className="h-28 sm:h-32 bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-600 w-full relative">
         <div className="absolute inset-0 bg-white/5 backdrop-blur-[1px]" />
       </div>
 
-      <div className="p-6 sm:p-8 -mt-12 relative">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-gray-100">
-          <div className="flex items-end gap-4">
-            <div className="w-20 h-20 rounded-2xl bg-white p-1 shadow-md shrink-0">
-              <div className="w-full h-full rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-2xl uppercase">
-                {user?.name?.charAt(0) || 'U'}
+      <div className="p-6 sm:p-8 relative">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100">
+          <div className="flex items-center gap-4">
+            <div className="relative group shrink-0">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleAvatarChange}
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                className="hidden"
+                disabled={uploadingAvatar}
+              />
+              <div className="w-20 h-20 rounded-2xl bg-white p-1 shadow-md shrink-0 overflow-hidden relative border border-gray-100">
+                {uploadingAvatar && (
+                  <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] rounded-xl flex items-center justify-center z-20">
+                    <Loader2 size={24} className="animate-spin text-blue-600" />
+                  </div>
+                )}
+                {avatarPreview ? (
+                  <img
+                    src={avatarPreview}
+                    alt={name || user?.name || 'User'}
+                    className="w-full h-full rounded-xl object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full rounded-xl bg-gradient-to-tr from-indigo-100 to-blue-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-extrabold text-2xl uppercase select-none">
+                    {getInitials(name || user?.name)}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  disabled={uploadingAvatar}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute inset-1 rounded-xl bg-slate-900/40 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer disabled:cursor-not-allowed"
+                  title="Ubah Foto Profil"
+                >
+                  <Camera size={18} />
+                </button>
               </div>
+              <button
+                type="button"
+                disabled={uploadingAvatar}
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md transition cursor-pointer disabled:opacity-50"
+                title="Upload Foto Profil"
+              >
+                {uploadingAvatar ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
+              </button>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
+
+            <div className="flex flex-col justify-center">
+              <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">
-                  {user?.name || '-'}
+                  {name || user?.name || '-'}
                 </h2>
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <ShieldCheck size={13} /> Terverifikasi
                 </span>
               </div>
-              <p className="text-gray-500 text-sm mt-1">{roleSubtitle}</p>
+              <p className="text-gray-500 text-sm mt-0.5">{roleSubtitle}</p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <button
+                  type="button"
+                  disabled={uploadingAvatar}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                >
+                  {uploadingAvatar ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" /> Menyimpan foto...
+                    </>
+                  ) : (
+                    <>
+                      <Camera size={13} /> Ganti Foto Profil
+                    </>
+                  )}
+                </button>
+                {avatarPreview && !uploadingAvatar && (
+                  <>
+                    <span className="text-gray-300">•</span>
+                    <button
+                      type="button"
+                      onClick={handleRemoveAvatar}
+                      className="text-xs font-medium text-rose-500 hover:text-rose-600 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 size={12} /> Hapus
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-2xl self-start sm:self-auto">
+          <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-2xl self-start sm:self-center">
             <button
               type="button"
               onClick={() => setActiveTab('profile')}
