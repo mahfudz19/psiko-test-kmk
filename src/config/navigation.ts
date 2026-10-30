@@ -9,6 +9,10 @@ import {
   User,
   PlusCircle,
   Database,
+  MessageSquare,
+  Briefcase,
+  Award,
+  Newspaper,
 } from 'lucide-react'
 import { MenuItem } from '../Layouts/PortalLayout'
 
@@ -33,4 +37,8 @@ export const adminMenuItems: MenuItem[] = [
   { id: 'input_test', label: 'Input Tes Minat Bakat', icon: CheckSquare, href: '/admin/input-test' },
   { id: 'input_jurusan', label: 'Input Jelajahi Jurusan', icon: Database, href: '/admin/input-jurusan' },
   { id: 'monitoring_tes', label: 'Monitoring Tes', icon: Users, href: '/admin/monitoring-tes' },
+  { id: 'monitoring_testimoni', label: 'Monitoring Testimoni', icon: MessageSquare, href: '/admin/monitoring-testimoni', section: 'MANAJEMEN LANDING PAGE' },
+  { id: 'program', label: 'Program', icon: Briefcase, href: '/admin/program', section: 'MANAJEMEN LANDING PAGE' },
+  { id: 'beasiswa', label: 'Beasiswa', icon: Award, href: '/admin/beasiswa', section: 'MANAJEMEN LANDING PAGE' },
+  { id: 'berita_artikel', label: 'Berita & Artikel', icon: Newspaper, href: '/admin/berita-artikel', section: 'MANAJEMEN LANDING PAGE' },
 ]

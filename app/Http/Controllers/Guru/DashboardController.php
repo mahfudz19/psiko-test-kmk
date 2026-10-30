@@ -236,6 +236,7 @@ class DashboardController extends Controller
             'npsn' => ['sometimes', 'nullable', 'string', 'max:50'],
             'current_password' => ['nullable', 'string'],
             'new_password' => ['nullable', 'string', 'min:6', 'confirmed'],
+            'avatar' => ['nullable'],
         ], [
             'name.required' => 'Nama lengkap wajib diisi.',
             'new_password.min' => 'Password baru minimal 6 karakter.',
@@ -260,6 +261,13 @@ class DashboardController extends Controller
         }
         if (array_key_exists('npsn', $validated)) {
             $user->npsn = trim($validated['npsn'] ?? '');
+        }
+
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('avatars', 'public');
+            $user->avatar = '/storage/' . $path;
+        } elseif ($request->has('avatar')) {
+            $user->avatar = $request->input('avatar') ?: null;
         }
 
         $user->save();

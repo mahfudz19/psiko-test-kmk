@@ -67,6 +67,7 @@ class ProfileController extends Controller
             'mentor_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'current_password' => ['nullable', 'string'],
             'new_password' => ['nullable', 'string', 'min:6', 'confirmed'],
+            'avatar' => ['nullable'],
         ], [
             'name.required' => 'Nama lengkap wajib diisi.',
             'new_password.min' => 'Password baru minimal 6 karakter.',
@@ -100,6 +101,13 @@ class ProfileController extends Controller
                     'mentor_name' => $chosenMentor,
                 ]);
             }
+        }
+
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('avatars', 'public');
+            $user->avatar = '/storage/' . $path;
+        } elseif ($request->has('avatar')) {
+            $user->avatar = $request->input('avatar') ?: null;
         }
 
         $user->save();

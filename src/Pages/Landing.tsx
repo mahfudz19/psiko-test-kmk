@@ -16,6 +16,7 @@ import {
   BookOpen,
   CheckSquare,
   ChevronRight,
+  ChevronLeft,
   Lock,
   Menu,
   X,
@@ -46,7 +47,9 @@ import {
   Clock,
   Ticket,
   Megaphone,
+  ExternalLink,
 } from 'lucide-react'
+import { Testimonial, getPublishedTestimonials } from '../services/testimonialService'
 
 const landingSlides = [
   {
@@ -201,7 +204,96 @@ const programsData: ProgramDetail[] = [
   },
 ]
 
-export default function Landing() {
+interface TestimonialItem {
+  id: number | string
+  name: string
+  role: string
+  rating: number
+  content: string
+  avatar?: string | null
+  user?: {
+    avatar?: string | null
+  }
+  is_published?: boolean
+  isPublished?: boolean
+}
+
+interface LandingProps {
+  majors?: any[]
+  testimonials?: TestimonialItem[]
+  studyPrograms?: any[]
+  scholarships?: any[]
+  webinar?: any | null
+  announcements?: any[]
+  news?: any[]
+}
+
+const parseScholarshipList = (val: any): string[] => {
+  if (!val) return []
+  if (Array.isArray(val)) {
+    return val
+      .map((item) => (typeof item === 'string' ? item : item?.title || item?.name || item?.desc || ''))
+      .filter((s) => typeof s === 'string' && s.trim().length > 0)
+  }
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val)
+      if (Array.isArray(parsed)) return parseScholarshipList(parsed)
+    } catch {
+      return val.split('\n').map((s) => s.trim()).filter(Boolean)
+    }
+  }
+  return []
+}
+
+const getScholarshipTag = (sch: any): string => {
+  if (!sch) return ''
+  if (sch.category && typeof sch.category === 'object' && sch.category.name) return sch.category.name
+  if (typeof sch.tag === 'string' && sch.tag) return sch.tag
+  if (typeof sch.tag === 'object' && sch.tag?.name) return sch.tag.name
+  return ''
+}
+
+const getScholarshipTagColor = (sch: any): string => {
+  if (!sch) return 'bg-blue-100 text-blue-700'
+  if (sch.category && typeof sch.category === 'object' && sch.category.badge_color) return sch.category.badge_color
+  if (typeof sch.tag === 'object' && sch.tag?.badge_color) return sch.tag.badge_color
+  return sch.tag_color || sch.tagColor || 'bg-blue-100 text-blue-700'
+}
+
+export default function Landing({
+  testimonials: serverTestimonials = [],
+  studyPrograms: serverStudyPrograms = [],
+  scholarships: serverScholarships = [],
+  webinar: serverWebinar = null,
+  announcements: serverAnnouncements = [],
+  news: serverNews = [],
+}: LandingProps) {
+  const effectiveNews = (serverNews && serverNews.length > 0)
+    ? serverNews.slice(0, 3)
+    : []
+  const effectiveScholarships = (serverScholarships && serverScholarships.length > 0)
+    ? serverScholarships.slice(0, 2)
+    : []
+  const effectivePrograms = (serverStudyPrograms && serverStudyPrograms.length > 0)
+    ? serverStudyPrograms.map((p) => ({
+      id: String(p.id),
+      name: p.name,
+      isAvailable: !p.status || p.status.includes('Aktif'),
+      cardDesc: p.short_description || '',
+      iconUrl: p.icon || null,
+      icon: FlaskConical,
+      about: p.detailed_description || p.short_description || '',
+      degree: p.academic_degree ? `Lulusan program studi ini akan memperoleh gelar akademik ${p.academic_degree}.` : '',
+      degreeNote: '',
+      careerProspects: (Array.isArray(p.career_prospects) ? p.career_prospects : []).map((cp: any) => ({
+        title: cp.name || cp.title || '',
+        desc: cp.description || cp.desc || '',
+        iconUrl: cp.icon || null,
+        icon: Building2,
+      })),
+    }))
+    : programsData
   const [landingSlide, setLandingSlide] = useState(0)
   const visibleLandingSlide = landingSlide % landingSlides.length
 
@@ -210,6 +302,33 @@ export default function Landing() {
   const [activeSection, setActiveSection] = useState('home')
   const [selectedProgram, setSelectedProgram] = useState<ProgramDetail | null>(null)
   const [selectedScholarship, setSelectedScholarship] = useState<any | null>(null)
+  const [testimonials, setTestimonials] = useState<TestimonialItem[]>(serverTestimonials || [])
+  const [testimonialPage, setTestimonialPage] = useState(0)
+
+  const getInitials = (name: string) => {
+    if (!name) return 'U'
+    const parts = name.trim().split(/\s+/)
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase()
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  }
+
+  useEffect(() => {
+    if (serverTestimonials && serverTestimonials.length > 0) {
+      setTestimonials(serverTestimonials)
+      return
+    }
+    fetch('/api/testimonials/published')
+      .then((res) => {
+        if (!res.ok) throw new Error()
+        return res.json()
+      })
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setTestimonials(data)
+        }
+      })
+      .catch(() => { })
+  }, [serverTestimonials])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -542,46 +661,102 @@ export default function Landing() {
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center relative z-10">
                 <div className="lg:col-span-7">
-                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-4">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f87171] text-white text-[11px] font-extrabold uppercase tracking-wider shadow-sm">
-                      <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                      LIVE WEBINAR
-                    </span>
-                    <span className="text-xs text-slate-500 font-medium inline-flex items-center gap-1.5">
-                      <Calendar size={13} className="text-slate-400" />
-                      Sabtu, 24 Oktober 2026
-                    </span>
-                    <span className="text-xs text-slate-500 font-medium inline-flex items-center gap-1.5">
-                      <Clock size={13} className="text-slate-400" />
-                      09.00 - 11.30 WITA
-                    </span>
-                  </div>
+                  {serverWebinar ? (
+                    <div>
+                      <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-4">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f87171] text-white text-[11px] font-extrabold uppercase tracking-wider shadow-sm">
+                          <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                          {serverWebinar.badge_label || 'LIVE WEBINAR'}
+                        </span>
+                        {serverWebinar.event_date && (
+                          <span className="text-xs text-slate-500 font-medium inline-flex items-center gap-1.5">
+                            <Calendar size={13} className="text-slate-400" />
+                            {serverWebinar.event_date}
+                          </span>
+                        )}
+                        {serverWebinar.event_time && (
+                          <span className="text-xs text-slate-500 font-medium inline-flex items-center gap-1.5">
+                            <Clock size={13} className="text-slate-400" />
+                            {serverWebinar.event_time}
+                          </span>
+                        )}
+                      </div>
 
-                  <h2 className="text-2xl sm:text-3xl lg:text-[2rem] font-extrabold text-[#19355a] tracking-tight leading-snug">
-                    Grand Webinar: &quot;Strategi Memilih Jurusan &amp; Menembus Kampus Impian 2027&quot;
-                  </h2>
+                      <Link href={`/berita/${serverWebinar.slug}`} className="group block">
+                        <h2 className="text-2xl sm:text-3xl lg:text-[2rem] font-extrabold text-[#19355a] group-hover:text-blue-700 transition-colors tracking-tight leading-snug">
+                          {serverWebinar.title}
+                        </h2>
+                      </Link>
 
-                  <p className="mt-4 text-xs sm:text-sm text-slate-500 leading-relaxed max-w-xl">
-                    Temukan bedah tuntas bakat minat bersama Praktisi Edukasi &amp; Dosen Farmasi. Dapatkan pula bocoran beasiswa eksklusif Yayasan Gen-U!
-                  </p>
+                      {serverWebinar.excerpt && (
+                        <p className="mt-4 text-xs sm:text-sm text-slate-500 leading-relaxed max-w-xl">
+                          {serverWebinar.excerpt}
+                        </p>
+                      )}
 
-                  <div className="mt-7 flex flex-wrap items-center gap-4">
-                    <Link
-                      href="/register"
-                      className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#284f7a] hover:bg-[#1d3d61] text-white font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer"
-                    >
-                      <Ticket size={16} />
-                      <span>Daftar Event Gratis</span>
-                    </Link>
-                    <a
-                      href="#berita"
-                      onClick={(e) => scrollToSection(e, '#berita')}
-                      className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-[#284f7a] hover:underline cursor-pointer"
-                    >
-                      <span>Lihat Berita Lainnya</span>
-                      <ChevronRight size={15} />
-                    </a>
-                  </div>
+                      <div className="mt-7 flex flex-wrap items-center gap-4">
+                        {serverWebinar.event_link ? (
+                          serverWebinar.event_link.startsWith('http://') || serverWebinar.event_link.startsWith('https://') ? (
+                            <a
+                              href={serverWebinar.event_link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#284f7a] hover:bg-[#1d3d61] text-white font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+                            >
+                              <Ticket size={16} />
+                              <span>Daftar Event Gratis</span>
+                              <ExternalLink size={14} />
+                            </a>
+                          ) : (
+                            <Link
+                              href={serverWebinar.event_link}
+                              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#284f7a] hover:bg-[#1d3d61] text-white font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+                            >
+                              <Ticket size={16} />
+                              <span>Daftar Event Gratis</span>
+                            </Link>
+                          )
+                        ) : (
+                          <Link
+                            href={`/berita/${serverWebinar.slug}`}
+                            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#284f7a] hover:bg-[#1d3d61] text-white font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+                          >
+                            <Ticket size={16} />
+                            <span>Daftar Event Gratis</span>
+                          </Link>
+                        )}
+                        <Link
+                          href="/berita"
+                          className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-[#284f7a] hover:underline cursor-pointer"
+                        >
+                          <span>Lihat Berita Lainnya</span>
+                          <ChevronRight size={15} />
+                        </Link>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-4">
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px] font-bold uppercase tracking-wider mb-4">
+                        <Ticket size={14} className="text-slate-400" />
+                        <span>Webinar Mendatang</span>
+                      </div>
+                      <h2 className="text-2xl sm:text-3xl font-extrabold text-[#19355a] tracking-tight leading-snug">
+                        Belum Ada Agenda Live Webinar
+                      </h2>
+                      <p className="mt-3 text-xs sm:text-sm text-slate-500 leading-relaxed max-w-xl">
+                        Nantikan jadwal sesi webinar dan workshop interaktif seputar pemilihan jurusan dan persiapan kampus berikutnya di Gen-U.
+                      </p>
+                      <div className="mt-6 flex items-center gap-4">
+                        <Link
+                          href="/berita"
+                          className="inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-[#284f7a] hover:underline cursor-pointer"
+                        >
+                          <span>Lihat Berita Lainnya</span>
+                          <ChevronRight size={15} />
+                        </Link>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="lg:col-span-5">
@@ -592,39 +767,37 @@ export default function Landing() {
                         <span>PENGUMUMAN PENTING</span>
                       </div>
                       <span className="text-[11px] text-slate-400 font-medium">
-                        Diperbarui Hari Ini
+                        Diperbarui
                       </span>
                     </div>
 
-                    <div className="space-y-3 mt-3">
-                      <div className="bg-white rounded-xl p-3.5 border border-slate-200/60 shadow-sm hover:border-blue-200 transition-colors">
-                        <div className="flex items-center justify-between gap-2">
-                          <h3 className="font-bold text-xs sm:text-sm text-slate-900 leading-snug">
-                            Beasiswa Prestasi Akademik 2026 Resmi Dibuka!
-                          </h3>
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shrink-0">
-                            Baru
-                          </span>
-                        </div>
-                        <p className="text-[11px] sm:text-xs text-slate-500 mt-1 leading-relaxed line-clamp-1">
-                          Pendaftaran dibuka hingga 30 November 2026. Kuota terbatas 100...
-                        </p>
+                    {serverAnnouncements.length > 0 ? (
+                      <div className="space-y-3 mt-3">
+                        {serverAnnouncements.map((ann: any) => (
+                          <Link
+                            key={ann.id}
+                            href={`/berita/${ann.slug}`}
+                            className="block bg-white rounded-xl p-3.5 border border-slate-200/60 shadow-sm hover:border-blue-300 hover:shadow-md transition-all group"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="font-bold text-xs sm:text-sm text-slate-900 group-hover:text-blue-700 leading-snug line-clamp-1">
+                                {ann.title}
+                              </h3>
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shrink-0">
+                                {ann.badge_label || 'Penting'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] sm:text-xs text-slate-500 mt-1 leading-relaxed line-clamp-1">
+                              {ann.excerpt || 'Klik untuk membaca detail pengumuman selengkapnya...'}
+                            </p>
+                          </Link>
+                        ))}
                       </div>
-
-                      <div className="bg-white rounded-xl p-3.5 border border-slate-200/60 shadow-sm hover:border-blue-200 transition-colors">
-                        <div className="flex items-center justify-between gap-2">
-                          <h3 className="font-bold text-xs sm:text-sm text-slate-900 leading-snug">
-                            Modul Simulasi Kuliah Farmasi Telah Diperbarui
-                          </h3>
-                          <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded shrink-0">
-                            Fitur
-                          </span>
-                        </div>
-                        <p className="text-[11px] sm:text-xs text-slate-500 mt-1 leading-relaxed line-clamp-1">
-                          Coba pengalaman praktikum lab kefarmasian secara virtual gratis di Ge...
-                        </p>
+                    ) : (
+                      <div className="py-8 text-center bg-white rounded-xl border border-slate-200/50 mt-3 p-4">
+                        <p className="text-xs text-slate-400">Belum ada pengumuman baru saat ini.</p>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -647,17 +820,16 @@ export default function Landing() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch">
-              {programsData.map((prog) => {
+              {effectivePrograms.map((prog: any) => {
                 const ProgIcon = prog.icon
                 return (
                   <div
                     key={prog.id}
                     onClick={() => setSelectedProgram(prog)}
-                    className={`rounded-2xl p-8 flex flex-col items-center text-center justify-between transition-all duration-200 cursor-pointer group ${
-                      prog.isAvailable
+                    className={`rounded-2xl p-8 flex flex-col items-center text-center justify-between transition-all duration-200 cursor-pointer group ${prog.isAvailable
                         ? 'bg-white shadow-xl shadow-slate-200/70 border-t-4 border-[#244b7a] border-x border-b border-slate-100 hover:-translate-y-1'
                         : 'bg-slate-50/80 border border-slate-200/70 relative hover:bg-white hover:shadow-lg'
-                    }`}
+                      }`}
                   >
                     {!prog.isAvailable && (
                       <span className="absolute top-5 right-5 text-[10px] font-bold text-slate-500 bg-slate-200/80 px-2.5 py-1 rounded-full uppercase tracking-wider">
@@ -666,30 +838,36 @@ export default function Landing() {
                     )}
 
                     <div className="w-full flex flex-col items-center pt-2">
-                      <div
-                        className={`flex items-center justify-center mb-6 transition-transform group-hover:scale-105 ${
-                          prog.isAvailable
-                            ? 'w-16 h-16 rounded-full bg-[#244b7a] text-white shadow-md'
-                            : 'w-14 h-14 rounded-full bg-slate-200/80 text-slate-400'
-                        }`}
-                      >
-                        <ProgIcon size={prog.isAvailable ? 28 : 24} />
-                      </div>
+                      {prog.iconUrl ? (
+                        <img
+                          src={prog.iconUrl}
+                          alt={prog.name}
+                          className={`${prog.isAvailable ? 'w-16 h-16' : 'w-14 h-14'
+                            } rounded-full object-cover mb-6 transition-transform group-hover:scale-105 shadow-sm`}
+                        />
+                      ) : (
+                        <div
+                          className={`flex items-center justify-center mb-6 transition-transform group-hover:scale-105 ${prog.isAvailable
+                              ? 'w-16 h-16 rounded-full bg-[#244b7a] text-white shadow-md'
+                              : 'w-14 h-14 rounded-full bg-slate-200/80 text-slate-400'
+                            }`}
+                        >
+                          <ProgIcon size={prog.isAvailable ? 28 : 24} />
+                        </div>
+                      )}
 
                       <h3
-                        className={`text-lg sm:text-xl font-bold mb-3 ${
-                          prog.isAvailable
+                        className={`text-lg sm:text-xl font-bold mb-3 ${prog.isAvailable
                             ? 'text-slate-900 group-hover:text-blue-700'
                             : 'text-slate-600'
-                        } transition-colors`}
+                          } transition-colors`}
                       >
                         {prog.name}
                       </h3>
 
                       <p
-                        className={`text-xs sm:text-sm leading-relaxed max-w-xs ${
-                          prog.isAvailable ? 'text-slate-500' : 'text-slate-400'
-                        }`}
+                        className={`text-xs sm:text-sm leading-relaxed max-w-xs ${prog.isAvailable ? 'text-slate-500' : 'text-slate-400'
+                          }`}
                       >
                         {prog.cardDesc}
                       </p>
@@ -702,11 +880,10 @@ export default function Landing() {
                           e.stopPropagation()
                           setSelectedProgram(prog)
                         }}
-                        className={`inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold transition-all ${
-                          prog.isAvailable
+                        className={`inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold transition-all ${prog.isAvailable
                             ? 'text-blue-700 group-hover:gap-2.5 group-hover:text-blue-900'
                             : 'text-slate-400 group-hover:text-blue-600'
-                        }`}
+                          }`}
                       >
                         <span>Lihat Detail</span>
                         <ChevronRight size={15} />
@@ -884,175 +1061,111 @@ export default function Landing() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch mb-12">
-              <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-xl shadow-slate-200/50 border border-slate-100 border-l-[5px] border-l-[#f59e0b] flex flex-col justify-between hover:-translate-y-1 transition-all duration-300">
-                <div>
-                  <div className="flex flex-col sm:flex-row items-start gap-5">
-                    <img
-                      src={landingBeasiswaOne}
-                      alt="Mahasiswa berdiskusi di perpustakaan"
-                      className="w-full sm:w-28 sm:h-28 rounded-2xl object-cover shrink-0 aspect-video sm:aspect-square shadow-sm"
-                    />
-                    <div className="flex-1 w-full">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-md">
-                          S1 Dalam Negeri
-                        </span>
-                        <span className="text-xs text-slate-400 font-medium inline-flex items-center gap-1.5">
-                          <Users size={14} className="text-slate-400" />
-                          10.000 Kuota
-                        </span>
-                      </div>
-
-                      <h3 className="text-lg sm:text-xl font-bold text-slate-900 mt-2.5 mb-0.5">
-                        Beasiswa Indonesia Pintar 2027
-                      </h3>
-                      <p className="text-xs text-slate-400 mb-3">
-                        Oleh Kementerian Pendidikan
-                      </p>
-
-                      <ul className="space-y-1.5 text-xs sm:text-sm text-slate-600">
-                        <li className="flex items-center gap-2">
-                          <Check size={16} className="text-amber-500 shrink-0 stroke-[2.5]" />
-                          <span>Biaya Pendidikan Penuh (UKT)</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check size={16} className="text-amber-500 shrink-0 stroke-[2.5]" />
-                          <span>Uang Saku Bulanan Rp 1.500.000</span>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
+            {effectiveScholarships.length === 0 ? (
+              <div className="bg-white rounded-3xl border border-dashed border-slate-200 p-10 sm:p-14 text-center max-w-xl mx-auto shadow-sm mb-12">
+                <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-100/80 shadow-xs">
+                  <Award size={30} strokeWidth={2} />
                 </div>
-
-                <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="text-[11px] text-slate-400 block">Batas Waktu:</span>
-                    <span className="text-xs sm:text-sm font-bold text-red-600">
-                      28 Februari 2027
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSelectedScholarship({
-                        name: 'Beasiswa Indonesia Pintar 2027',
-                        organizer: 'Kementerian Pendidikan',
-                        tag: 'S1 Dalam Negeri',
-                        tagColor: 'bg-emerald-100 text-emerald-700',
-                        deadline: '28 Februari 2027',
-                        benefits: [
-                          'Pembebasan biaya kuliah UKT secara penuh hingga lulus (8 semester)',
-                          'Bantuan biaya hidup bulanan sebesar Rp 1.500.000 ditransfer langsung ke rekening',
-                          'Akses prioritas program pembinaan dan magang kementerian',
-                        ],
-                        requirements: [
-                          'Siswa SMA/SMK/MA sederajat kelas 12 atau lulusan maksimal 2 tahun sebelumnya.',
-                          'Memiliki potensi akademik baik dan keterbatasan ekonomi yang didukung dokumen sah.',
-                          'Terdaftar dalam Data Terpadu Kesejahteraan Sosial (DTKS) atau pemegang KIP/KKS.',
-                          'Lolos seleksi masuk perguruan tinggi negeri maupun swasta mitra.',
-                        ],
-                        documents: [
-                          'Kartu Peserta KIP Kuliah / Akun Kemendikbud',
-                          'Kartu Keluarga (KK) & KTP / Kartu Pelajar',
-                          'Rapor semester 1 hingga 5 yang dilegalisir sekolah',
-                          'Surat Keterangan Penghasilan Orang Tua dari kelurahan/desa',
-                        ],
-                      })
-                    }
-                    className="px-6 py-2.5 rounded-xl bg-[#284f7a] hover:bg-[#1d3d61] text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow transition-colors cursor-pointer"
+                <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                  Belum Ada Program Beasiswa Aktif
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-500 mt-2 max-w-md mx-auto leading-relaxed">
+                  Informasi beasiswa terbaru sedang dipersiapkan oleh tim mitra dan penyelenggara kami. Silakan cek kembali dalam waktu dekat.
+                </p>
+                <div className="mt-6 flex items-center justify-center gap-3">
+                  <Link
+                    href="/beasiswa"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs transition"
                   >
-                    Lihat Syarat
-                  </button>
+                    <Search size={14} />
+                    <span>Jelajahi Arsip Beasiswa</span>
+                  </Link>
                 </div>
               </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch mb-12">
+                {effectiveScholarships.map((sch: any, idx: number) => {
+                  const borderStyle = sch.border_color ? { borderLeftColor: sch.border_color } : {}
+                  const displayImage = sch.image_url || sch.image || (idx === 0 ? landingBeasiswaOne : landingBeasiswaTwo)
+                  const summaryList = parseScholarshipList(sch.summary_benefits).length > 0
+                    ? parseScholarshipList(sch.summary_benefits)
+                    : parseScholarshipList(sch.benefits).slice(0, 2)
+                  const tagName = getScholarshipTag(sch)
+                  const tagColor = getScholarshipTagColor(sch)
 
-              <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-xl shadow-slate-200/50 border border-slate-100 border-l-[5px] border-l-[#284f7a] flex flex-col justify-between hover:-translate-y-1 transition-all duration-300">
-                <div>
-                  <div className="flex flex-col sm:flex-row items-start gap-5">
-                    <img
-                      src={landingBeasiswaTwo}
-                      alt="Mahasiswa tersenyum di taman kampus"
-                      className="w-full sm:w-28 sm:h-28 rounded-2xl object-cover shrink-0 aspect-video sm:aspect-square shadow-sm"
-                    />
-                    <div className="flex-1 w-full">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span className="text-[11px] font-bold text-blue-700 bg-blue-100 px-2.5 py-0.5 rounded-md">
-                          Mahasiswa Aktif
-                        </span>
-                        <span className="text-xs text-slate-400 font-medium inline-flex items-center gap-1.5">
-                          <Users size={14} className="text-slate-400" />
-                          500 Kuota
-                        </span>
+                  return (
+                    <div
+                      key={sch.id || idx}
+                      style={borderStyle}
+                      className="bg-white rounded-3xl p-6 sm:p-7 shadow-xl shadow-slate-200/50 border border-slate-100 border-l-[5px] flex flex-col justify-between hover:-translate-y-1 transition-all duration-300"
+                    >
+                      <div>
+                        <div className="flex flex-col sm:flex-row items-start gap-5">
+                          <img
+                            src={displayImage}
+                            alt={sch.name}
+                            className="w-full sm:w-28 sm:h-28 rounded-2xl object-cover shrink-0 aspect-video sm:aspect-square shadow-sm"
+                          />
+                          <div className="flex-1 w-full">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              {tagName && (
+                                <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-md ${tagColor}`}>
+                                  {tagName}
+                                </span>
+                              )}
+                              {sch.quota && (
+                                <span className="text-xs text-slate-400 font-medium inline-flex items-center gap-1.5">
+                                  <Users size={14} className="text-slate-400" />
+                                  {sch.quota}
+                                </span>
+                              )}
+                            </div>
+
+                            <h3 className="text-lg sm:text-xl font-bold text-slate-900 mt-2.5 mb-0.5">
+                              {sch.name}
+                            </h3>
+                            <p className="text-xs text-slate-400 mb-3">
+                              Oleh {sch.organizer}
+                            </p>
+
+                            {summaryList.length > 0 && (
+                              <ul className="space-y-1.5 text-xs sm:text-sm text-slate-600">
+                                {summaryList.map((b: string, i: number) => (
+                                  <li key={i} className="flex items-center gap-2">
+                                    <Check size={16} className="text-amber-500 shrink-0 stroke-[2.5]" />
+                                    <span>{b}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
-                      <h3 className="text-lg sm:text-xl font-bold text-slate-900 mt-2.5 mb-0.5">
-                        Gen-U Future Leaders Program
-                      </h3>
-                      <p className="text-xs text-slate-400 mb-3">
-                        Oleh Yayasan Generasi Universal
-                      </p>
-
-                      <ul className="space-y-1.5 text-xs sm:text-sm text-slate-600">
-                        <li className="flex items-center gap-2">
-                          <Check size={16} className="text-blue-600 shrink-0 stroke-[2.5]" />
-                          <span>Bantuan Dana Rp 10.000.000 / Semester</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check size={16} className="text-blue-600 shrink-0 stroke-[2.5]" />
-                          <span>Program Mentoring Eksklusif 1 Tahun</span>
-                        </li>
-                      </ul>
+                      <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between gap-4">
+                        <div>
+                          <span className="text-[11px] text-slate-400 block">Batas Waktu:</span>
+                          <span className="text-xs sm:text-sm font-bold text-red-600">
+                            {sch.deadline || 'Sesuai Ketentuan'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedScholarship(sch)}
+                          className="px-6 py-2.5 rounded-xl bg-[#284f7a] hover:bg-[#1d3d61] text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow transition-colors cursor-pointer"
+                        >
+                          Lihat Syarat
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="text-[11px] text-slate-400 block">Batas Waktu:</span>
-                    <span className="text-xs sm:text-sm font-bold text-red-600">
-                      15 Januari 2027
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSelectedScholarship({
-                        name: 'Gen-U Future Leaders Program',
-                        organizer: 'Yayasan Generasi Universal',
-                        tag: 'Mahasiswa Aktif',
-                        tagColor: 'bg-blue-100 text-blue-700',
-                        deadline: '15 Januari 2027',
-                        benefits: [
-                          'Bantuan dana pendidikan Rp 10.000.000 per semester untuk biaya kuliah & riset',
-                          'Pendampingan mentorship 1-on-1 intensif selama 1 tahun bersama profesional industri',
-                          'Akses jaringan alumni global dan peluang project leadership berskala nasional',
-                        ],
-                        requirements: [
-                          'Mahasiswa aktif semester 1 hingga 6 jenjang D4/S1 di seluruh universitas Indonesia.',
-                          'Memiliki Indeks Prestasi Kumulatif (IPK) minimal 3.25 dari skala 4.00.',
-                          'Aktif dalam kegiatan organisasi, riset inovasi, kepanitiaan, atau pengabdian masyarakat.',
-                          'Berkomitmen mengikuti seluruh rangkaian pembinaan kepemimpinan berkala.',
-                        ],
-                        documents: [
-                          'Transkrip nilai semester terbaru yang dilegalisir',
-                          'Curriculum Vitae (CV) atau portofolio kegiatan kemahasiswaan',
-                          'Esai kepemimpinan dan rencana kontribusi masa depan (maksimal 500 kata)',
-                          'Surat keterangan aktif kuliah dari pihak fakultas / program studi',
-                        ],
-                      })
-                    }
-                    className="px-6 py-2.5 rounded-xl bg-[#284f7a] hover:bg-[#1d3d61] text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow transition-colors cursor-pointer"
-                  >
-                    Lihat Syarat
-                  </button>
-                </div>
+                  )
+                })}
               </div>
-            </div>
+            )}
 
             <div className="text-center">
               <Link
-                href="/register"
+                href="/beasiswa"
                 className="inline-flex items-center gap-2 px-7 py-3 rounded-xl border-2 border-[#284f7a] text-[#284f7a] bg-white font-bold text-sm shadow-sm hover:bg-blue-50 transition-colors cursor-pointer"
               >
                 <span>Cari Beasiswa Lainnya</span>
@@ -1077,58 +1190,72 @@ export default function Landing() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[
-                {
-                  title: 'Panduan Lengkap Memilih Jurusan Kuliah Sesuai Tipe Kepribadian RIASEC',
-                  category: 'Tips Minat Bakat',
-                  date: '18 Oktober 2026',
-                  readTime: '5 Menit Baca',
-                  summary: 'Memilih jurusan bukan sekadar mengikuti tren, melainkan menyelaraskan antara ketertarikan alami, gaya berpikir, dan peluang masa depan.',
-                },
-                {
-                  title: 'Strategi Mempersiapkan Dokumen & Portofolio Seleksi Masuk Perguruan Tinggi',
-                  category: 'Info PMB',
-                  date: '15 Oktober 2026',
-                  readTime: '4 Menit Baca',
-                  summary: 'Langkah taktis menyusun berkas administrasi, esai motivasi, dan sertifikat prestasi agar peluang diterima semakin besar.',
-                },
-                {
-                  title: 'Mengenal Perbedaan Jalur Sarjana (S1), Sarjana Terapan (D4), dan Diploma (D3)',
-                  category: 'Eksplorasi Studi',
-                  date: '10 Oktober 2026',
-                  readTime: '6 Menit Baca',
-                  summary: 'Pahami perbedaan bobot teori dan praktik antar jenjang pendidikan agar tidak salah menentukan target kuliah sesuai passionmu.',
-                },
-              ].map((article, idx) => (
-                <article
-                  key={idx}
-                  className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm hover:shadow-lg transition-all flex flex-col justify-between group"
-                >
-                  <div>
-                    <div className="flex items-center justify-between text-xs text-slate-400 mb-3">
-                      <span className="font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
-                        {article.category}
-                      </span>
-                      <span className="flex items-center gap-1 font-medium">
-                        <Calendar size={12} /> {article.date}
-                      </span>
-                    </div>
-                    <h3 className="font-bold text-slate-900 text-lg leading-snug group-hover:text-blue-700 transition-colors mb-3">
-                      {article.title}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                      {article.summary}
-                    </p>
-                  </div>
-                  <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-500">
-                    <span>{article.readTime}</span>
-                    <span className="text-blue-700 group-hover:underline flex items-center gap-1 font-bold">
-                      Baca Artikel <ChevronRight size={13} />
-                    </span>
-                  </div>
-                </article>
-              ))}
+            {effectiveNews.length === 0 ? (
+              <div className="bg-white rounded-3xl border border-dashed border-slate-200 p-12 text-center max-w-lg mx-auto shadow-sm">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-3">
+                  <Newspaper size={24} />
+                </div>
+                <h3 className="text-base font-bold text-slate-900">Belum Ada Artikel Berita</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Artikel edukasi dan panduan terbaru akan segera dipublikasikan di sini.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {effectiveNews.map((article: any) => {
+                  const badgeColor = article.category?.badge_color || 'bg-blue-50 text-blue-700 border border-blue-100'
+                  const categoryName = article.category?.name || 'Berita'
+                  const displayDate = article.formatted_date || article.created_at || ''
+
+                  return (
+                    <article
+                      key={article.id}
+                      className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm hover:shadow-lg transition-all flex flex-col justify-between group"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between text-xs text-slate-400 mb-3">
+                          <span className={`font-bold px-2.5 py-0.5 rounded-full text-[11px] ${badgeColor}`}>
+                            {categoryName}
+                          </span>
+                          {displayDate && (
+                            <span className="flex items-center gap-1 font-medium">
+                              <Calendar size={12} /> {displayDate}
+                            </span>
+                          )}
+                        </div>
+                        <Link href={`/berita/${article.slug}`}>
+                          <h3 className="font-bold text-slate-900 text-lg leading-snug group-hover:text-blue-700 transition-colors mb-3 line-clamp-2">
+                            {article.title}
+                          </h3>
+                        </Link>
+                        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed line-clamp-3">
+                          {article.excerpt}
+                        </p>
+                      </div>
+                      <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-500">
+                        <span>{article.read_time || '5 Menit Baca'}</span>
+                        <Link
+                          href={`/berita/${article.slug}`}
+                          className="text-blue-700 group-hover:underline flex items-center gap-1 font-bold cursor-pointer"
+                        >
+                          <span>Baca Artikel</span>
+                          <ChevronRight size={13} />
+                        </Link>
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+
+            <div className="text-center mt-12">
+              <Link
+                href="/berita"
+                className="inline-flex items-center gap-2 px-7 py-3 rounded-xl border-2 border-[#284f7a] text-[#284f7a] bg-white font-bold text-sm shadow-sm hover:bg-blue-50 transition-colors cursor-pointer"
+              >
+                <span>Cari Berita Lainnya</span>
+                <Search size={16} />
+              </Link>
             </div>
           </div>
         </section>
@@ -1184,75 +1311,109 @@ export default function Landing() {
           </div>
         </section>
 
-        <section aria-labelledby="testimonial-title" className="py-20 lg:py-28 bg-[#214a77] text-white px-6 md:px-12 lg:px-16 relative overflow-hidden">
-          <div className="pointer-events-none absolute left-6 sm:left-12 top-6 font-serif text-[130px] sm:text-[180px] font-black text-white/10 select-none leading-none -translate-y-6 sm:-translate-y-10" aria-hidden="true">
-            &ldquo;
-          </div>
-
-          <div className="max-w-6xl mx-auto relative z-10">
-            <div className="text-center mb-12 sm:mb-16">
-              <h2 id="testimonial-title" className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white">
-                Kata Mereka yang Sudah Bergabung
-              </h2>
-              <p className="mt-3.5 text-blue-100/90 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
-                Kisah sukses para siswa menemukan jalur yang tepat bersama Gen-U.
-              </p>
+        {testimonials.length > 0 && (
+          <section aria-labelledby="testimonial-title" className="py-20 lg:py-28 bg-[#214a77] text-white px-6 md:px-12 lg:px-16 relative overflow-hidden">
+            <div className="pointer-events-none absolute left-6 sm:left-12 top-6 font-serif text-[130px] sm:text-[180px] font-black text-white/10 select-none leading-none -translate-y-6 sm:-translate-y-10" aria-hidden="true">
+              &ldquo;
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-center">
-              <div className="bg-white/10 backdrop-blur-md rounded-3xl p-7 border border-white/15 shadow-lg flex flex-col justify-between h-full">
-                <div className="flex items-center gap-3.5">
-                  <img
-                    src={avatarSarah}
-                    alt="Sarah Amanda"
-                    className="w-12 h-12 rounded-full object-cover ring-2 ring-yellow-400/90 shrink-0"
-                  />
-                  <div>
-                    <h3 className="font-bold text-white text-base">Sarah Amanda</h3>
-                    <p className="text-xs text-blue-200/90">Mahasiswa Psikologi UI</p>
-                  </div>
+            <div className="max-w-6xl mx-auto relative z-10">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-12 sm:mb-16">
+                <div>
+                  <h2 id="testimonial-title" className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white">
+                    Kata Mereka yang Sudah Bergabung
+                  </h2>
+                  <p className="mt-3.5 text-blue-100/90 text-sm sm:text-base max-w-xl leading-relaxed">
+                    Kisah sukses para siswa menemukan jalur yang tepat bersama Gen-U.
+                  </p>
                 </div>
-                <p className="text-xs sm:text-sm text-blue-100/95 leading-relaxed italic mt-5">
-                  &quot;Dulu aku bingung banget mau milih Ilmu Komunikasi atau Psikologi. Setelah ikut tes di Gen-U dan baca database jurusannya, aku makin mantap pilih Psikologi. Valid banget!&quot;
-                </p>
+
+                {testimonials.length > 3 && (
+                  <div className="flex items-center gap-2.5 shrink-0 self-end">
+                    <button
+                      type="button"
+                      onClick={() => setTestimonialPage((prev) => Math.max(0, prev - 1))}
+                      disabled={testimonialPage === 0}
+                      className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white transition disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      aria-label="Testimoni sebelumnya"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTestimonialPage((prev) => Math.min(Math.ceil(testimonials.length / 3) - 1, prev + 1))}
+                      disabled={testimonialPage >= Math.ceil(testimonials.length / 3) - 1}
+                      className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white transition disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      aria-label="Testimoni selanjutnya"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <div className="bg-white text-slate-800 rounded-3xl p-8 shadow-2xl border border-white/20 flex flex-col justify-between h-full transform md:-translate-y-2">
-                <div className="flex items-center gap-3.5">
-                  <img
-                    src={avatarBudi}
-                    alt="Budi Santoso"
-                    className="w-12 h-12 rounded-full object-cover shrink-0 ring-2 ring-slate-100"
-                  />
-                  <div>
-                    <h3 className="font-bold text-slate-900 text-base">Budi Santoso</h3>
-                    <p className="text-xs text-slate-400">Siswa Kelas 12 SMAN 1</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 items-stretch">
+                {testimonials.slice(testimonialPage * 3, testimonialPage * 3 + 3).map((item) => (
+                  <div
+                    key={item.id}
+                    className="bg-white/10 backdrop-blur-md rounded-3xl p-7 border border-white/15 shadow-lg flex flex-col justify-between h-full hover:bg-white/15 transition-all"
+                  >
+                    <div>
+                      <div className="flex items-center gap-3.5">
+                        {item.avatar || item.user?.avatar ? (
+                          <img
+                            src={(item.avatar || item.user?.avatar) as string}
+                            alt={item.name}
+                            className="w-12 h-12 rounded-full object-cover ring-2 ring-yellow-400/90 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500 text-slate-900 font-extrabold text-sm flex items-center justify-center ring-2 ring-yellow-400/90 shadow-md shrink-0 select-none">
+                            {getInitials(item.name)}
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="font-bold text-white text-base">{item.name}</h3>
+                          <p className="text-xs text-blue-200/90">{item.role}</p>
+                          <div className="flex items-center gap-0.5 mt-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                size={13}
+                                className={
+                                  star <= item.rating
+                                    ? 'text-amber-400 fill-amber-400'
+                                    : 'text-white/30 fill-white/10'
+                                }
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-xs sm:text-sm text-blue-100/95 leading-relaxed italic mt-5">
+                        &quot;{item.content}&quot;
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed italic mt-5">
-                  &quot;Fitur perbandingan kampus nya juara. Aku bisa lihat jelas rincian biaya UKT dan prospek kerja dari masing-masing kampus incaran aku. UI-nya juga gampang banget dipakai.&quot;
-                </p>
+                ))}
               </div>
 
-              <div className="bg-white/10 backdrop-blur-md rounded-3xl p-7 border border-white/15 shadow-lg flex flex-col justify-between h-full">
-                <div className="flex items-center gap-3.5">
-                  <img
-                    src={avatarDina}
-                    alt="Dina Amelia"
-                    className="w-12 h-12 rounded-full object-cover ring-2 ring-yellow-400/90 shrink-0"
-                  />
-                  <div>
-                    <h3 className="font-bold text-white text-base">Dina Amelia</h3>
-                    <p className="text-xs text-blue-200/90">Mahasiswa Sistem Informasi</p>
-                  </div>
+              {testimonials.length > 3 && (
+                <div className="flex items-center justify-center gap-2 mt-10">
+                  {Array.from({ length: Math.ceil(testimonials.length / 3) }).map((_, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setTestimonialPage(idx)}
+                      className={`h-2.5 rounded-full transition-all cursor-pointer ${testimonialPage === idx ? 'w-8 bg-amber-400' : 'w-2.5 bg-white/30 hover:bg-white/50'
+                        }`}
+                      aria-label={`Ke halaman ${idx + 1}`}
+                    />
+                  ))}
                 </div>
-                <p className="text-xs sm:text-sm text-blue-100/95 leading-relaxed italic mt-5">
-                  &quot;Gak nyangka hasil tesnya seakurat itu nebak kepribadian aku. Konselor Gen-U juga ramah banget jelasin hasil tes dan kasih opsi jurusan yang sesuai dengan passing grade raporku.&quot;
-                </p>
-              </div>
+              )}
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
       </main>
 
@@ -1424,7 +1585,7 @@ export default function Landing() {
           onClick={() => setSelectedProgram(null)}
         >
           <div
-            className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden max-h-[92vh] flex flex-col animate-in zoom-in-95 duration-200"
+            className="relative w-full max-w-5xl xl:max-w-6xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden max-h-[92vh] flex flex-col animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="pt-7 pb-4 px-6 sm:px-8 border-b border-slate-100 flex items-center justify-between shrink-0">
@@ -1450,15 +1611,30 @@ export default function Landing() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
                 <div className="lg:col-span-5 flex flex-col gap-5">
                   <div className="bg-slate-50/90 rounded-2xl p-6 border border-slate-200/70 shadow-sm hover:border-blue-200 transition-colors flex-1">
-                    <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center mb-4 shadow-sm">
-                      <selectedProgram.icon size={22} />
-                    </div>
+                    {(selectedProgram as any).iconUrl ? (
+                      <img
+                        src={(selectedProgram as any).iconUrl}
+                        alt={selectedProgram.name}
+                        className="w-12 h-12 rounded-xl object-cover mb-4"
+                      />
+                    ) : (
+                      <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center mb-4 shadow-sm">
+                        <selectedProgram.icon size={22} />
+                      </div>
+                    )}
                     <h4 className="text-lg font-bold text-slate-900 mb-2.5">
                       Apa itu {selectedProgram.name}?
                     </h4>
-                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                      {selectedProgram.about}
-                    </p>
+                    {selectedProgram.about && selectedProgram.about.includes('<') ? (
+                      <div
+                        className="text-xs sm:text-sm text-slate-600 leading-relaxed prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: selectedProgram.about }}
+                      />
+                    ) : (
+                      <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                        {selectedProgram.about}
+                      </p>
+                    )}
                   </div>
 
                   <div className="bg-slate-50/90 rounded-2xl p-6 border border-slate-200/70 shadow-sm hover:border-amber-200 transition-colors flex-1">
@@ -1470,7 +1646,7 @@ export default function Landing() {
                     </h4>
                     <div className="text-xs sm:text-sm text-slate-600 leading-relaxed space-y-2.5">
                       <p>{selectedProgram.degree}</p>
-                      <p>{selectedProgram.degreeNote}</p>
+                      {selectedProgram.degreeNote && <p>{selectedProgram.degreeNote}</p>}
                     </div>
                   </div>
                 </div>
@@ -1485,16 +1661,24 @@ export default function Landing() {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                      {selectedProgram.careerProspects.map((cp, idx) => {
-                        const CpIcon = cp.icon
+                      {selectedProgram.careerProspects.map((cp: any, idx: number) => {
+                        const CpIcon = cp.icon || Building2
                         return (
                           <div
                             key={idx}
                             className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 hover:bg-white/15 hover:border-white/20 transition-all flex flex-col"
                           >
-                            <div className="w-8 h-8 rounded-lg bg-amber-400/20 text-amber-300 flex items-center justify-center mb-2.5">
-                              <CpIcon size={16} />
-                            </div>
+                            {cp.iconUrl ? (
+                              <img
+                                src={cp.iconUrl}
+                                alt={cp.title}
+                                className="w-9 h-9 rounded-lg object-cover mb-2.5"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-lg bg-amber-400/20 text-amber-300 flex items-center justify-center mb-2.5">
+                                <CpIcon size={16} />
+                              </div>
+                            )}
                             <h5 className="font-bold text-white text-sm mb-1.5 leading-snug">
                               {cp.title}
                             </h5>
@@ -1537,13 +1721,17 @@ export default function Landing() {
           >
             <div className="pt-7 pb-4 px-6 sm:px-8 border-b border-slate-100 flex items-center justify-between shrink-0">
               <div>
-                <span className={`inline-block text-[11px] font-bold px-3 py-0.5 rounded-full mb-1.5 ${selectedScholarship.tagColor}`}>
-                  {selectedScholarship.tag}
-                </span>
+                {getScholarshipTag(selectedScholarship) && (
+                  <span className={`inline-block text-[11px] font-bold px-3 py-0.5 rounded-full mb-1.5 ${getScholarshipTagColor(selectedScholarship)}`}>
+                    {getScholarshipTag(selectedScholarship)}
+                  </span>
+                )}
                 <h3 id="modal-scholarship-title" className="text-xl sm:text-2xl font-extrabold text-[#152e4d] tracking-tight">
-                  {selectedScholarship.name}
+                  {typeof selectedScholarship.name === 'string' ? selectedScholarship.name : ''}
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">{selectedScholarship.organizer}</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {typeof selectedScholarship.organizer === 'string' ? selectedScholarship.organizer : ''}
+                </p>
               </div>
               <button
                 type="button"
@@ -1556,52 +1744,88 @@ export default function Landing() {
             </div>
 
             <div className="p-6 sm:p-8 overflow-y-auto space-y-6">
-              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200/60">
-                <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-                  <Check size={16} className="text-emerald-600" />
-                  Benefit &amp; Cakupan Dana
-                </h4>
-                <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
-                  {selectedScholarship.benefits.map((b: string, i: number) => (
-                    <li key={i} className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                      <span>{b}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {(() => {
+                const benefits = parseScholarshipList(selectedScholarship.benefits)
+                if (benefits.length === 0) return null
+                return (
+                  <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200/60">
+                    <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                      <Check size={16} className="text-emerald-600" />
+                      Benefit &amp; Cakupan Dana
+                    </h4>
+                    <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
+                      {benefits.map((b: string, i: number) => (
+                        <li key={i} className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                          <span>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )
+              })()}
 
-              <div>
-                <h4 className="text-sm font-bold text-slate-900 mb-3">Persyaratan Umum:</h4>
-                <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
-                  {selectedScholarship.requirements.map((req: string, i: number) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 mt-1.5" />
-                      <span>{req}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {(() => {
+                const reqs = parseScholarshipList(selectedScholarship.requirements)
+                if (reqs.length === 0) return null
+                return (
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 mb-3">Persyaratan Umum:</h4>
+                    <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
+                      {reqs.map((req: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 mt-1.5" />
+                          <span>{req}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )
+              })()}
 
-              <div>
-                <h4 className="text-sm font-bold text-slate-900 mb-3">Dokumen yang Diperlukan:</h4>
-                <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
-                  {selectedScholarship.documents.map((doc: string, i: number) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
-                      <span>{doc}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {(() => {
+                const docs = parseScholarshipList(selectedScholarship.documents)
+                if (docs.length === 0) return null
+                return (
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 mb-3">Dokumen yang Diperlukan:</h4>
+                    <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
+                      {docs.map((doc: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
+                          <span>{doc}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )
+              })()}
 
               <div className="p-4 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-between text-xs text-amber-900">
                 <span>Batas Waktu Pendaftaran:</span>
-                <strong className="text-red-600 font-bold">{selectedScholarship.deadline}</strong>
+                <strong className="text-red-600 font-bold">{selectedScholarship.deadline || 'Sesuai Ketentuan'}</strong>
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50/50">
+            <div className="p-4 sm:p-6 border-t border-slate-100 flex items-center justify-between gap-3 bg-slate-50/50">
+              {selectedScholarship.link_url ? (
+                <a
+                  href={selectedScholarship.link_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold transition shadow-xs"
+                >
+                  <span>Daftar / Info Resmi</span>
+                  <ExternalLink size={14} />
+                </a>
+              ) : (
+                <Link
+                  href="/register"
+                  className="px-6 py-2.5 rounded-xl bg-[#284f7a] hover:bg-[#1d3d61] text-white text-xs sm:text-sm font-bold transition-colors shadow-sm"
+                >
+                  Daftar Sekarang
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={() => setSelectedScholarship(null)}
@@ -1609,12 +1833,6 @@ export default function Landing() {
               >
                 Tutup
               </button>
-              <Link
-                href="/register"
-                className="px-6 py-2.5 rounded-xl bg-[#284f7a] hover:bg-[#1d3d61] text-white text-xs sm:text-sm font-bold transition-colors shadow-sm"
-              >
-                Daftar Sekarang
-              </Link>
             </div>
           </div>
         </div>

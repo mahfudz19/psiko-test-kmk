@@ -7,10 +7,18 @@ use App\Mail\WorkspaceCredentialsMail;
 use App\Models\Major;
 use App\Models\MajorCategory;
 use App\Models\MentorBooking;
+use App\Models\Post;
+use App\Models\PostCategory;
 use App\Models\PsychometricTest;
 use App\Models\RiasecAssessment;
 use App\Models\RiasecQuestion;
+use App\Models\Scholarship;
+use App\Models\ScholarshipCategory;
+use App\Models\StudyProgram;
+use App\Models\StudyProgramCategory;
+use App\Models\Testimonial;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -1138,5 +1146,637 @@ class DashboardController extends Controller
         );
 
         return back()->with('success', "Skor asesmen untuk {$student->name} berhasil diperbarui.");
+    }
+
+    public function monitoringTestimoni(): Response
+    {
+        $testimonials = Testimonial::with('user:id,name,avatar')->orderBy('created_at', 'desc')->get();
+        return Inertia::render('Admin/MonitoringTestimoni', [
+            'testimonials' => $testimonials,
+        ]);
+    }
+
+    public function storeTestimonial(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'role' => 'required|string|in:Siswa,Guru',
+            'rating' => 'required|integer|min:1|max:5',
+            'content' => 'required|string',
+            'avatar' => 'nullable',
+        ]);
+
+        $data = [
+            'name' => $validated['name'],
+            'role' => $validated['role'],
+            'rating' => $validated['rating'],
+            'content' => $validated['content'],
+            'is_published' => false,
+        ];
+
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('testimonials', 'public');
+            $data['avatar'] = '/storage/' . $path;
+        } elseif ($request->filled('avatar')) {
+            $data['avatar'] = $request->input('avatar');
+        }
+
+        Testimonial::create($data);
+
+        return back()->with('success', 'Testimoni berhasil ditambahkan.');
+    }
+
+    public function updateTestimonial(Request $request, $id): RedirectResponse
+    {
+        $testimonial = Testimonial::findOrFail($id);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'role' => 'required|string|in:Siswa,Guru',
+            'rating' => 'required|integer|min:1|max:5',
+            'content' => 'required|string',
+            'avatar' => 'nullable',
+        ]);
+
+        $data = [
+            'name' => $validated['name'],
+            'role' => $validated['role'],
+            'rating' => $validated['rating'],
+            'content' => $validated['content'],
+        ];
+
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('testimonials', 'public');
+            $data['avatar'] = '/storage/' . $path;
+        } elseif ($request->has('avatar')) {
+            $data['avatar'] = $request->input('avatar') ?: null;
+        }
+
+        $testimonial->update($data);
+
+        return back()->with('success', 'Testimoni berhasil diperbarui.');
+    }
+
+    public function togglePublishTestimonial($id): RedirectResponse
+    {
+        $testimonial = Testimonial::findOrFail($id);
+        $testimonial->update([
+            'is_published' => !$testimonial->is_published,
+        ]);
+
+        return back()->with('success', 'Status publikasi testimoni berhasil diubah.');
+    }
+
+    public function destroyTestimonial($id): RedirectResponse
+    {
+        $testimonial = Testimonial::findOrFail($id);
+        $testimonial->delete();
+
+        return back()->with('success', 'Testimoni berhasil dihapus.');
+    }
+
+    public function storeFeedback(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $validated = $request->validate([
+            'rating' => 'required|integer|min:1|max:5',
+            'content' => 'nullable|string',
+        ]);
+
+        Testimonial::create([
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'role' => $user->role === 'guru' ? 'Guru' : 'Siswa',
+            'rating' => $validated['rating'],
+            'content' => !empty($validated['content']) ? $validated['content'] : 'Aplikasi Gen-U sangat bermanfaat dan mudah digunakan.',
+            'avatar' => $user->avatar,
+            'is_published' => false,
+        ]);
+
+        return back()->with('success', 'Terima kasih atas masukan Anda.');
+    }
+
+    public function program(): Response
+    {
+        $programs = StudyProgram::with('category')->latest()->get();
+        $categories = StudyProgramCategory::withCount('studyPrograms')->latest()->get();
+
+        return Inertia::render('Admin/Program', [
+            'programs' => $programs,
+            'categories' => $categories,
+        ]);
+    }
+
+    public function storeProgram(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'category_id' => 'nullable|exists:study_program_categories,id',
+            'status' => 'required|string|max:50',
+            'academic_degree' => 'required|string|max:255',
+            'short_description' => 'required|string',
+            'detailed_description' => 'nullable|string',
+            'career_prospects' => 'nullable',
+            'icon' => 'nullable',
+        ]);
+
+        $data = [
+            'name' => trim($validated['name']),
+            'category_id' => $validated['category_id'] ?? null,
+            'status' => $validated['status'],
+            'academic_degree' => trim($validated['academic_degree']),
+            'short_description' => trim($validated['short_description']),
+            'detailed_description' => $validated['detailed_description'] ?? null,
+        ];
+
+        if ($request->hasFile('icon')) {
+            $path = $request->file('icon')->store('programs', 'public');
+            $data['icon'] = '/storage/' . $path;
+        }
+
+        $careerProspects = $request->input('career_prospects');
+        if (is_string($careerProspects)) {
+            $careerProspects = json_decode($careerProspects, true);
+        }
+        if (is_array($careerProspects)) {
+            foreach ($careerProspects as $index => &$career) {
+                if ($request->hasFile("career_icon_{$index}")) {
+                    $cPath = $request->file("career_icon_{$index}")->store('programs/careers', 'public');
+                    $career['icon'] = '/storage/' . $cPath;
+                }
+            }
+            $data['career_prospects'] = $careerProspects;
+        }
+
+        StudyProgram::create($data);
+
+        return back()->with('success', 'Program studi berhasil ditambahkan.');
+    }
+
+    public function updateProgram(Request $request, $id): RedirectResponse
+    {
+        $program = StudyProgram::findOrFail($id);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'category_id' => 'nullable|exists:study_program_categories,id',
+            'status' => 'required|string|max:50',
+            'academic_degree' => 'required|string|max:255',
+            'short_description' => 'required|string',
+            'detailed_description' => 'nullable|string',
+            'career_prospects' => 'nullable',
+            'icon' => 'nullable',
+        ]);
+
+        $data = [
+            'name' => trim($validated['name']),
+            'category_id' => $validated['category_id'] ?? null,
+            'status' => $validated['status'],
+            'academic_degree' => trim($validated['academic_degree']),
+            'short_description' => trim($validated['short_description']),
+            'detailed_description' => $validated['detailed_description'] ?? null,
+        ];
+
+        if ($request->hasFile('icon')) {
+            $path = $request->file('icon')->store('programs', 'public');
+            $data['icon'] = '/storage/' . $path;
+        } elseif ($request->has('icon') && empty($request->input('icon'))) {
+            $data['icon'] = null;
+        }
+
+        $careerProspects = $request->input('career_prospects');
+        if (is_string($careerProspects)) {
+            $careerProspects = json_decode($careerProspects, true);
+        }
+        if (is_array($careerProspects)) {
+            foreach ($careerProspects as $index => &$career) {
+                if ($request->hasFile("career_icon_{$index}")) {
+                    $cPath = $request->file("career_icon_{$index}")->store('programs/careers', 'public');
+                    $career['icon'] = '/storage/' . $cPath;
+                }
+            }
+            $data['career_prospects'] = $careerProspects;
+        }
+
+        $program->update($data);
+
+        return back()->with('success', 'Program studi berhasil diperbarui.');
+    }
+
+    public function destroyProgram($id): RedirectResponse
+    {
+        $program = StudyProgram::findOrFail($id);
+        $program->delete();
+
+        return back()->with('success', 'Program studi berhasil dihapus.');
+    }
+
+    public function storeProgramCategory(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:study_program_categories,name',
+            'description' => 'nullable|string',
+        ]);
+
+        StudyProgramCategory::create([
+            'name' => trim($validated['name']),
+            'description' => !empty($validated['description']) ? trim($validated['description']) : null,
+        ]);
+
+        return back()->with('success', 'Kategori program studi berhasil ditambahkan.');
+    }
+
+    public function updateProgramCategory(Request $request, $id): RedirectResponse
+    {
+        $category = StudyProgramCategory::findOrFail($id);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:study_program_categories,name,' . $id,
+            'description' => 'nullable|string',
+        ]);
+
+        $category->update([
+            'name' => trim($validated['name']),
+            'description' => !empty($validated['description']) ? trim($validated['description']) : null,
+        ]);
+
+        return back()->with('success', 'Kategori program studi berhasil diperbarui.');
+    }
+
+    public function destroyProgramCategory($id): RedirectResponse
+    {
+        $category = StudyProgramCategory::findOrFail($id);
+        $category->delete();
+
+        return back()->with('success', 'Kategori program studi berhasil dihapus.');
+    }
+
+    public function uploadEditorImage(Request $request): JsonResponse
+    {
+        $request->validate([
+            'image' => 'required|file|image|max:5120',
+        ]);
+
+        $path = $request->file('image')->store('editor-images', 'public');
+
+        return response()->json([
+            'url' => '/storage/' . $path,
+        ]);
+    }
+
+    public function beasiswa(): Response
+    {
+        $scholarships = Scholarship::with('category')->latest()->get();
+        $categories = ScholarshipCategory::withCount('scholarships')->latest()->get();
+
+        return Inertia::render('Admin/Beasiswa', [
+            'scholarships' => $scholarships,
+            'categories' => $categories,
+        ]);
+    }
+
+    public function storeScholarshipCategory(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:100|unique:scholarship_categories,name',
+            'badge_color' => 'nullable|string|max:100',
+        ]);
+
+        ScholarshipCategory::create([
+            'name' => trim($validated['name']),
+            'badge_color' => $validated['badge_color'] ?: 'bg-blue-100 text-blue-700',
+        ]);
+
+        return back()->with('success', 'Kategori / Tag beasiswa berhasil ditambahkan.');
+    }
+
+    public function updateScholarshipCategory(Request $request, $id): RedirectResponse
+    {
+        $category = ScholarshipCategory::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100|unique:scholarship_categories,name,' . $category->id,
+            'badge_color' => 'nullable|string|max:100',
+        ]);
+
+        $category->update([
+            'name' => trim($validated['name']),
+            'badge_color' => $validated['badge_color'] ?: 'bg-blue-100 text-blue-700',
+        ]);
+
+        // Keep existing scholarships synced if they use this category
+        Scholarship::where('category_id', $category->id)->update([
+            'tag' => $category->name,
+            'tag_color' => $category->badge_color,
+        ]);
+
+        return back()->with('success', 'Kategori / Tag beasiswa berhasil diperbarui.');
+    }
+
+    public function destroyScholarshipCategory($id): RedirectResponse
+    {
+        $category = ScholarshipCategory::findOrFail($id);
+        $category->delete();
+
+        return back()->with('success', 'Kategori / Tag beasiswa berhasil dihapus.');
+    }
+
+    public function storeScholarship(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'category_id' => 'nullable|exists:scholarship_categories,id',
+            'name' => 'required|string|max:255',
+            'organizer' => 'required|string|max:255',
+            'tag' => 'nullable|string|max:100',
+            'tag_color' => 'nullable|string|max:100',
+            'border_color' => 'nullable|string|max:50',
+            'quota' => 'nullable|string|max:100',
+            'deadline' => 'nullable|string|max:100',
+            'status' => 'required|string|max:50',
+            'link_url' => 'nullable|string|max:255',
+            'summary_benefits' => 'nullable',
+            'benefits' => 'nullable',
+            'requirements' => 'nullable',
+            'documents' => 'nullable',
+            'image' => 'nullable',
+        ]);
+
+        $tag = $validated['tag'] ?? '';
+        $tagColor = $validated['tag_color'] ?? 'bg-blue-100 text-blue-700';
+
+        if (!empty($validated['category_id'])) {
+            $cat = ScholarshipCategory::find($validated['category_id']);
+            if ($cat) {
+                $tag = $cat->name;
+                $tagColor = $cat->badge_color;
+            }
+        }
+
+        $data = [
+            'category_id' => $validated['category_id'] ?? null,
+            'name' => trim($validated['name']),
+            'organizer' => trim($validated['organizer']),
+            'tag' => trim($tag),
+            'tag_color' => $tagColor,
+            'border_color' => $validated['border_color'] ?? '#284f7a',
+            'quota' => !empty($validated['quota']) ? trim($validated['quota']) : null,
+            'deadline' => !empty($validated['deadline']) ? trim($validated['deadline']) : null,
+            'status' => $validated['status'] ?? 'Aktif (Tampil)',
+            'link_url' => !empty($validated['link_url']) ? trim($validated['link_url']) : null,
+        ];
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('scholarships', 'public');
+            $data['image'] = '/storage/' . $path;
+        }
+
+        foreach (['summary_benefits', 'benefits', 'requirements', 'documents'] as $field) {
+            $val = $request->input($field);
+            if (is_string($val)) {
+                $decoded = json_decode($val, true);
+                $val = is_array($decoded) ? $decoded : array_filter(array_map('trim', explode("\n", $val)));
+            }
+            if (is_array($val)) {
+                $data[$field] = array_values(array_filter($val, fn($item) => !empty(trim((string)$item))));
+            }
+        }
+
+        Scholarship::create($data);
+
+        return back()->with('success', 'Beasiswa berhasil ditambahkan.');
+    }
+
+    public function updateScholarship(Request $request, $id): RedirectResponse
+    {
+        $scholarship = Scholarship::findOrFail($id);
+
+        $validated = $request->validate([
+            'category_id' => 'nullable|exists:scholarship_categories,id',
+            'name' => 'required|string|max:255',
+            'organizer' => 'required|string|max:255',
+            'tag' => 'nullable|string|max:100',
+            'tag_color' => 'nullable|string|max:100',
+            'border_color' => 'nullable|string|max:50',
+            'quota' => 'nullable|string|max:100',
+            'deadline' => 'nullable|string|max:100',
+            'status' => 'required|string|max:50',
+            'link_url' => 'nullable|string|max:255',
+            'summary_benefits' => 'nullable',
+            'benefits' => 'nullable',
+            'requirements' => 'nullable',
+            'documents' => 'nullable',
+            'image' => 'nullable',
+        ]);
+
+        $tag = $validated['tag'] ?? $scholarship->tag;
+        $tagColor = $validated['tag_color'] ?? $scholarship->tag_color;
+
+        if (!empty($validated['category_id'])) {
+            $cat = ScholarshipCategory::find($validated['category_id']);
+            if ($cat) {
+                $tag = $cat->name;
+                $tagColor = $cat->badge_color;
+            }
+        }
+
+        $data = [
+            'category_id' => $validated['category_id'] ?? null,
+            'name' => trim($validated['name']),
+            'organizer' => trim($validated['organizer']),
+            'tag' => trim($tag),
+            'tag_color' => $tagColor,
+            'border_color' => $validated['border_color'] ?? '#284f7a',
+            'quota' => !empty($validated['quota']) ? trim($validated['quota']) : null,
+            'deadline' => !empty($validated['deadline']) ? trim($validated['deadline']) : null,
+            'status' => $validated['status'] ?? 'Aktif (Tampil)',
+            'link_url' => !empty($validated['link_url']) ? trim($validated['link_url']) : null,
+        ];
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('scholarships', 'public');
+            $data['image'] = '/storage/' . $path;
+        } elseif ($request->has('image') && empty($request->input('image'))) {
+            $data['image'] = null;
+        }
+
+        foreach (['summary_benefits', 'benefits', 'requirements', 'documents'] as $field) {
+            $val = $request->input($field);
+            if (is_string($val)) {
+                $decoded = json_decode($val, true);
+                $val = is_array($decoded) ? $decoded : array_filter(array_map('trim', explode("\n", $val)));
+            }
+            if (is_array($val)) {
+                $data[$field] = array_values(array_filter($val, fn($item) => !empty(trim((string)$item))));
+            }
+        }
+
+        $scholarship->update($data);
+
+        return back()->with('success', 'Beasiswa berhasil diperbarui.');
+    }
+
+    public function destroyScholarship($id): RedirectResponse
+    {
+        $scholarship = Scholarship::findOrFail($id);
+        $scholarship->delete();
+
+        return back()->with('success', 'Beasiswa berhasil dihapus.');
+    }
+
+    public function beritaArtikel(): Response
+    {
+        $posts = Post::with('category')->latest()->get();
+        $categories = PostCategory::withCount('posts')->latest()->get();
+
+        return Inertia::render('Admin/BeritaArtikel', [
+            'posts' => $posts,
+            'categories' => $categories,
+        ]);
+    }
+
+    public function storePostCategory(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:100|unique:post_categories,name',
+            'badge_color' => 'nullable|string|max:100',
+        ]);
+
+        PostCategory::create([
+            'name' => trim($validated['name']),
+            'slug' => Str::slug($validated['name']),
+            'badge_color' => $validated['badge_color'] ?: 'bg-blue-100 text-blue-700',
+        ]);
+
+        return back()->with('success', 'Kategori berhasil ditambahkan.');
+    }
+
+    public function updatePostCategory(Request $request, $id): RedirectResponse
+    {
+        $category = PostCategory::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100|unique:post_categories,name,' . $category->id,
+            'badge_color' => 'nullable|string|max:100',
+        ]);
+
+        $category->update([
+            'name' => trim($validated['name']),
+            'slug' => Str::slug($validated['name']),
+            'badge_color' => $validated['badge_color'] ?: 'bg-blue-100 text-blue-700',
+        ]);
+
+        return back()->with('success', 'Kategori berhasil diperbarui.');
+    }
+
+    public function destroyPostCategory($id): RedirectResponse
+    {
+        $category = PostCategory::findOrFail($id);
+        $category->delete();
+
+        return back()->with('success', 'Kategori berhasil dihapus.');
+    }
+
+    public function storePost(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'type' => 'required|in:berita,webinar,pengumuman',
+            'category_id' => 'nullable|exists:post_categories,id',
+            'excerpt' => 'nullable|string',
+            'content' => 'nullable|string',
+            'author' => 'nullable|string|max:100',
+            'read_time' => 'nullable|string|max:50',
+            'event_date' => 'nullable|string|max:100',
+            'event_time' => 'nullable|string|max:100',
+            'event_link' => 'nullable|string|max:255',
+            'badge_label' => 'nullable|string|max:50',
+            'status' => 'required|string|max:50',
+            'image' => 'nullable',
+        ]);
+
+        $slugBase = Str::slug($validated['title']);
+        $slug = $slugBase;
+        $counter = 1;
+        while (Post::where('slug', $slug)->exists()) {
+            $slug = $slugBase . '-' . $counter++;
+        }
+
+        $data = [
+            'category_id' => ($validated['type'] === 'berita') ? ($validated['category_id'] ?? null) : null,
+            'type' => $validated['type'],
+            'title' => trim($validated['title']),
+            'slug' => $slug,
+            'excerpt' => !empty($validated['excerpt']) ? trim($validated['excerpt']) : null,
+            'content' => $validated['content'] ?? null,
+            'author' => !empty($validated['author']) ? trim($validated['author']) : 'Tim Gen-U',
+            'read_time' => !empty($validated['read_time']) ? trim($validated['read_time']) : null,
+            'event_date' => !empty($validated['event_date']) ? trim($validated['event_date']) : null,
+            'event_time' => !empty($validated['event_time']) ? trim($validated['event_time']) : null,
+            'event_link' => !empty($validated['event_link']) ? trim($validated['event_link']) : null,
+            'badge_label' => !empty($validated['badge_label']) ? trim($validated['badge_label']) : null,
+            'status' => $validated['status'] ?? 'Aktif (Tampil)',
+            'published_at' => now(),
+        ];
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('posts', 'public');
+            $data['image'] = '/storage/' . $path;
+        }
+
+        Post::create($data);
+
+        return back()->with('success', 'Konten berhasil ditambahkan.');
+    }
+
+    public function updatePost(Request $request, $id): RedirectResponse
+    {
+        $post = Post::findOrFail($id);
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'type' => 'required|in:berita,webinar,pengumuman',
+            'category_id' => 'nullable|exists:post_categories,id',
+            'excerpt' => 'nullable|string',
+            'content' => 'nullable|string',
+            'author' => 'nullable|string|max:100',
+            'read_time' => 'nullable|string|max:50',
+            'event_date' => 'nullable|string|max:100',
+            'event_time' => 'nullable|string|max:100',
+            'event_link' => 'nullable|string|max:255',
+            'badge_label' => 'nullable|string|max:50',
+            'status' => 'required|string|max:50',
+            'image' => 'nullable',
+        ]);
+
+        $data = [
+            'category_id' => ($validated['type'] === 'berita') ? ($validated['category_id'] ?? null) : null,
+            'type' => $validated['type'],
+            'title' => trim($validated['title']),
+            'excerpt' => !empty($validated['excerpt']) ? trim($validated['excerpt']) : null,
+            'content' => $validated['content'] ?? null,
+            'author' => !empty($validated['author']) ? trim($validated['author']) : 'Tim Gen-U',
+            'read_time' => !empty($validated['read_time']) ? trim($validated['read_time']) : null,
+            'event_date' => !empty($validated['event_date']) ? trim($validated['event_date']) : null,
+            'event_time' => !empty($validated['event_time']) ? trim($validated['event_time']) : null,
+            'event_link' => !empty($validated['event_link']) ? trim($validated['event_link']) : null,
+            'badge_label' => !empty($validated['badge_label']) ? trim($validated['badge_label']) : null,
+            'status' => $validated['status'] ?? 'Aktif (Tampil)',
+        ];
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('posts', 'public');
+            $data['image'] = '/storage/' . $path;
+        } elseif ($request->has('image') && empty($request->input('image'))) {
+            $data['image'] = null;
+        }
+
+        $post->update($data);
+
+        return back()->with('success', 'Konten berhasil diperbarui.');
+    }
+
+    public function destroyPost($id): RedirectResponse
+    {
+        $post = Post::findOrFail($id);
+        $post->delete();
+
+        return back()->with('success', 'Konten berhasil dihapus.');
     }
 }

@@ -1,20 +1,24 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, router, usePage } from '@inertiajs/react'
 import {
   Menu,
   X,
   Shield,
   LogOut,
+  Pencil,
   LucideIcon,
 } from 'lucide-react'
 import NpsnLockNotice from '../components/NpsnLockNotice'
 import NpsnFormCard from '../components/NpsnFormCard'
+import StudentTeacherFeedbackModal from '../components/StudentTeacherFeedbackModal'
+import { hasUserReviewed } from '../services/testimonialService'
 
 export interface MenuItem {
   id: string
   label: string
   icon: LucideIcon
   href: string
+  section?: string
 }
 
 interface PortalLayoutProps {
@@ -32,11 +36,24 @@ export default function PortalLayout({
 }: PortalLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [logoutModalOpen, setLogoutModalOpen] = useState(false)
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false)
+  const [userHasReviewed, setUserHasReviewed] = useState(false)
   const { auth } = usePage<any>().props
   const user = auth?.user
 
+  useEffect(() => {
+    setUserHasReviewed(Boolean(user?.has_reviewed || hasUserReviewed(user?.id)))
+  }, [user?.id, user?.has_reviewed, feedbackModalOpen])
+
   const isNpsnMissing = (role === 'siswa' || role === 'guru') && (!user?.npsn || String(user.npsn).trim() === '')
   const profileHref = role === 'siswa' ? '/student/profile' : role === 'guru' ? '/guru/profile' : '#'
+
+  const getUserInitials = (name?: string) => {
+    if (!name) return role === 'siswa' ? 'S' : 'G'
+    const parts = name.trim().split(/\s+/)
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase()
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  }
 
   const handleLogout = () => {
     setLogoutModalOpen(false)
@@ -70,9 +87,17 @@ export default function PortalLayout({
                 href={profileHref}
                 className="flex items-center gap-2 rounded-lg text-left transition-colors hover:bg-blue-50"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">
-                  {role === 'siswa' ? 'S' : 'G'}
-                </span>
+                {user?.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name || 'User'}
+                    className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-blue-100"
+                  />
+                ) : (
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700 text-xs uppercase">
+                    {getUserInitials(user?.name)}
+                  </span>
+                )}
                 <span className="flex flex-col leading-tight">
                   <span className="text-sm font-bold text-gray-800">
                     {user?.name || (role === 'siswa' ? 'Andi Pratama' : 'Budi Santoso')}
@@ -103,34 +128,47 @@ export default function PortalLayout({
 
         <nav className="flex-1 overflow-y-auto py-4">
           <ul className="space-y-1 px-3">
-            {menuItems.map((item) => (
-              <li key={item.id}>
-                <Link
-                  href={isNpsnMissing ? '#' : item.href}
-                  onClick={(e) => {
-                    if (isNpsnMissing) {
-                      e.preventDefault()
-                      return
-                    }
-                    setSidebarOpen(false)
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                    isNpsnMissing
-                      ? 'text-gray-300 hover:text-gray-400 cursor-not-allowed opacity-50'
-                      : activeId === item.id
-                      ? role === 'admin'
-                        ? 'bg-slate-800 text-indigo-400'
-                        : 'bg-blue-50 text-blue-700 font-medium'
-                      : role === 'admin'
-                      ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                >
-                  <item.icon size={18} />
-                  <span className="text-sm text-left flex-1">{item.label}</span>
-                </Link>
-              </li>
-            ))}
+            {menuItems.map((item, idx) => {
+              const prevItem = idx > 0 ? menuItems[idx - 1] : undefined
+              const isFirstOfSection = item.section && item.section !== prevItem?.section
+              return (
+                <React.Fragment key={item.id}>
+                  {isFirstOfSection && (
+                    <li className="pt-4 pb-2 px-3">
+                      <span className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+                        {item.section}
+                      </span>
+                    </li>
+                  )}
+                  <li>
+                    <Link
+                      href={isNpsnMissing ? '#' : item.href}
+                      onClick={(e) => {
+                        if (isNpsnMissing) {
+                          e.preventDefault()
+                          return
+                        }
+                        setSidebarOpen(false)
+                      }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                        isNpsnMissing
+                          ? 'text-gray-300 hover:text-gray-400 cursor-not-allowed opacity-50'
+                          : activeId === item.id
+                          ? role === 'admin'
+                            ? 'bg-slate-800 text-indigo-400 font-semibold'
+                            : 'bg-blue-50 text-blue-700 font-medium'
+                          : role === 'admin'
+                          ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`}
+                    >
+                      <item.icon size={18} />
+                      <span className="text-sm text-left flex-1">{item.label}</span>
+                    </Link>
+                  </li>
+                </React.Fragment>
+              )
+            })}
           </ul>
         </nav>
 
@@ -147,7 +185,7 @@ export default function PortalLayout({
             }`}
           >
             <LogOut size={18} />
-            <span className="text-sm font-medium">Keluar</span>
+            <span className="text-sm font-medium">{role === 'admin' ? 'Logout' : 'Keluar'}</span>
           </button>
         </div>
       </div>
@@ -185,7 +223,7 @@ export default function PortalLayout({
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="max-w-6xl mx-auto">
+          <div className={`${role === 'admin' ? 'w-full max-w-7xl' : 'max-w-6xl'} mx-auto`}>
             {isNpsnMissing ? (
               activeId === 'profile' ? (
                 <NpsnFormCard user={user} role={role} />
@@ -202,14 +240,28 @@ export default function PortalLayout({
       {logoutModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-md rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4">
+            <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-500 border border-rose-100 flex items-center justify-center mx-auto mb-4">
               <LogOut size={26} strokeWidth={2.3} />
             </div>
             <h3 className="text-xl font-bold text-gray-900 tracking-tight">Konfirmasi Keluar</h3>
             <p className="text-sm text-gray-500 mt-2 leading-relaxed">
               Apakah Anda yakin ingin keluar dari akun Gen-U? Anda harus masuk kembali untuk mengakses portal.
             </p>
-            <div className="flex items-center gap-3 mt-6">
+
+            {(role === 'siswa' || role === 'guru') && !userHasReviewed && (
+              <button
+                type="button"
+                onClick={() => {
+                  setLogoutModalOpen(false)
+                  setFeedbackModalOpen(true)
+                }}
+                className="w-full mt-5 py-3 px-4 rounded-xl bg-blue-50/70 border border-blue-200/80 hover:bg-blue-100 text-blue-600 font-bold text-sm transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Pencil size={16} /> Berikan Testimoni
+              </button>
+            )}
+
+            <div className={`flex items-center gap-3 ${(role === 'siswa' || role === 'guru') && !userHasReviewed ? 'mt-3' : 'mt-6'}`}>
               <button
                 type="button"
                 onClick={() => setLogoutModalOpen(false)}
@@ -228,6 +280,17 @@ export default function PortalLayout({
           </div>
         </div>
       )}
+
+      <StudentTeacherFeedbackModal
+        isOpen={feedbackModalOpen}
+        onClose={() => {
+          setFeedbackModalOpen(false)
+          setUserHasReviewed(hasUserReviewed(user?.id))
+        }}
+        userName={user?.name || (role === 'siswa' ? 'Andi Pratama' : 'Budi Santoso')}
+        userRole={role}
+        userId={user?.id}
+      />
     </div>
   )
 }

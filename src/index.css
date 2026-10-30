@@ -1,8 +1,33 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --color-primary-light: #66beff;
+  --color-primary-main: #338be8;
+  --color-primary-dark: #0058b1;
+  --color-secondary-light: #939fd6;
+  --color-secondary-main: #606ca3;
+  --color-secondary-dark: #2d3970;
+  --color-success-light: #d3ffb6;
+  --color-success-main: #a0d683;
+  --color-success-dark: #6da350;
+  --color-error-light: #ffb8b8;
+  --color-error-main: #ff8585;
+  --color-error-dark: #cc5252;
+  --color-warning-light: #fae392;
+  --color-warning-main: #edd377;
+  --color-warning-dark: #d9bb52;
+  --color-info-light: #c0eaf7;
+  --color-info-main: #8db7c4;
+  --color-info-dark: #5a8491;
+  --color-background-default: #f5f9fa;
+  --color-background-paper: #ffffff;
+  --color-text-primary: #344767;
+  --color-text-secondary: #96a0b1;
+  --color-divider: #dce0dd;
 }
 
 html {
@@ -12,3 +37,72 @@ html {
 body {
   font-family: var(--font-sans);
 }
+
+.prose .selectedCell {
+  background-color: rgba(0, 120, 255, 0.15) !important;
+}
+
+.prose .tableWrapper table {
+  width: 100%;
+  --table-border-color: #e5e7eb;
+  --table-border-width: 1px;
+}
+
+.prose .tableWrapper table th,
+.prose .tableWrapper table td {
+  font-weight: normal;
+  text-align: left;
+  vertical-align: top;
+  border-color: var(--table-border-color);
+  border-width: var(--table-border-width);
+}
+
+ol[data-order-style='upper-alpha'] {
+  list-style-type: upper-alpha;
+}
+ol[data-order-style='lower-alpha'] {
+  list-style-type: lower-alpha;
+}
+ol[data-order-style='upper-roman'] {
+  list-style-type: upper-roman;
+}
+ol[data-order-style='lower-roman'] {
+  list-style-type: lower-roman;
+}
+
+ul[data-list-type='disc'] {
+  list-style-type: disc;
+}
+ul[data-list-type='circle'] {
+  list-style-type: circle;
+}
+ul[data-list-type='square'] {
+  list-style-type: square;
+}
+
+.prose .tableWrapper th:not(:last-child)::before,
+.prose .tableWrapper td:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -1px;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  background-color: transparent;
+  transition: background-color 0.2s ease;
+}
+
+.prose .tableWrapper th:not(:last-child):hover::before,
+.prose .tableWrapper td:not(:last-child):hover::before {
+  background-color: #3b82f6;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  color: #94a3b8;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
