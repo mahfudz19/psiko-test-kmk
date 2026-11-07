@@ -17,7 +17,11 @@ class RiasecController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
-        $tests = PsychometricTest::where('is_active', true)->orderBy('order_num')->get();
+        $tests = PsychometricTest::where('is_active', true)
+            ->orderBy('order_num', 'asc')
+            ->orderBy('created_at', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
 
         if (!empty($user?->npsn)) {
             $gurus = User::where('role', 'guru')
@@ -74,18 +78,26 @@ class RiasecController extends Controller
         $completedCount = count($completedTestIds);
         $allCompleted = $totalTests > 0 && $completedCount >= $totalTests;
 
+        $sortAssessmentByOldest = function ($a) {
+            return $a->psychometricTest?->order_num ?? ($a->created_at?->timestamp ?? $a->id);
+        };
+
         $assessmentWithScores = $assessments->where('status', 'selesai')
-            ->filter(fn($a) => !empty($a->dominant_code) || $a->score_r !== null)
-            ->sortByDesc('updated_at')
+            ->filter(fn($a) => !empty($a->dominant_code) || !empty($a->primary_result) || $a->score_r !== null)
+            ->sortBy($sortAssessmentByOldest)
             ->first();
 
         $latestAssessment = $assessmentWithScores
-            ?? $assessments->where('status', 'selesai')->sortByDesc('updated_at')->first()
-            ?? $assessments->sortByDesc('updated_at')->first();
+            ?? $assessments->where('status', 'selesai')->sortBy($sortAssessmentByOldest)->first()
+            ?? $assessments->sortBy($sortAssessmentByOldest)->first();
 
-        $completedAssessments = $assessments->where('status', 'selesai')->values()->all();
+        $completedAssessments = $assessments->where('status', 'selesai')
+            ->load('psychometricTest')
+            ->sortBy($sortAssessmentByOldest)
+            ->values()
+            ->all();
 
-        $hasScores = $assessments->contains(fn($a) => !empty($a->dominant_code) || $a->score_r !== null);
+        $hasScores = $assessments->contains(fn($a) => !empty($a->dominant_code) || !empty($a->primary_result) || $a->score_r !== null);
 
         $selectedMentor = $latestAssessment?->mentor_name ?? ($user->selected_mentor ?? ($mentors->first()?->name ?? 'Bpk. Budi Santoso, M.Psi'));
 

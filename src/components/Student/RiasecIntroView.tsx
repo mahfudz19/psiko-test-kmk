@@ -40,17 +40,17 @@ export default function RiasecIntroView({
             Kenali arah potensimu.
           </h1>
           <p className="text-indigo-100 text-sm sm:text-base leading-relaxed mb-6">
-            Instrumen RIASEC membantu Anda memahami kecenderungan diri dan mengeksplorasi pilihan studi yang sesuai.
+            Rangkaian instrumen tes minat, bakat, dan profil kepribadian (RIASEC, PAPI Kostick, DiSC, &amp; MBTI) membantu Anda memahami kecenderungan diri dan mengeksplorasi pilihan studi yang sesuai.
           </p>
           <div className="flex flex-wrap gap-2.5 text-xs font-medium">
             <span className="px-3.5 py-1.5 rounded-full bg-white/10 text-indigo-100">
-              42 pernyataan
+              Multi-Instrumen
             </span>
             <span className="px-3.5 py-1.5 rounded-full bg-white/10 text-indigo-100">
-              6 dimensi minat
+              Minat, Perilaku &amp; Kepribadian
             </span>
             <span className="px-3.5 py-1.5 rounded-full bg-white/10 text-indigo-100">
-              Tidak ada jawaban salah
+              Analisis Komprehensif
             </span>
           </div>
         </div>

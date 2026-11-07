@@ -20,14 +20,19 @@ export default function GuruMonitoring({
 }: GuruMonitoringProps) {
   const [selectedStudent, setSelectedStudent] = useState<StudentRiasecDetailData | null>(null)
 
+  const currentStudent = selectedStudent
+    ? students.find((s) => s.id === selectedStudent.id) || selectedStudent
+    : null
+
   return (
     <PortalLayout role="guru" menuItems={guruMenuItems} activeId="monitoring">
-      {selectedStudent ? (
+      {currentStudent ? (
         <StudentRiasecDetail
-          student={selectedStudent}
+          student={currentStudent}
           tests={tests}
           onBack={() => setSelectedStudent(null)}
-          canEdit={false}
+          canEdit={true}
+          updateUrl={`/guru/monitoring/${currentStudent.id}`}
         />
       ) : (
         <div className="bg-white rounded-2xl border border-gray-200/80 p-6 md:p-8 shadow-sm">

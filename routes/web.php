@@ -61,6 +61,7 @@ Route::prefix('student')->name('student.')->middleware(['auth', 'role:siswa'])->
 Route::prefix('guru')->name('guru.')->middleware(['auth', 'role:guru'])->group(function () {
     Route::get('/dashboard', [GuruDashboardController::class, 'index'])->name('dashboard');
     Route::get('/monitoring', [GuruDashboardController::class, 'monitoring'])->name('monitoring');
+    Route::put('/monitoring/{id}', [GuruDashboardController::class, 'updateStudentScore'])->name('monitoring.update');
     Route::get('/sesi-mentoring', [GuruMentoringController::class, 'index'])->name('sesi');
     Route::patch('/sesi-mentoring/{id}', [GuruMentoringController::class, 'updateStatus'])->name('sesi.status');
     Route::get('/profile', [GuruDashboardController::class, 'profile'])->name('profile');
