@@ -13,6 +13,7 @@ class RiasecAssessment extends Model
     protected $fillable = [
         'user_id',
         'psychometric_test_id',
+        'test_type',
         'score_r',
         'score_i',
         'score_a',
@@ -20,13 +21,22 @@ class RiasecAssessment extends Model
         'score_e',
         'score_c',
         'dominant_code',
+        'primary_result',
+        'dimension_scores',
         'status',
         'mentor_name',
         'answers',
+        'raw_answers',
+        'interpretation',
+        'completed_at',
     ];
 
     protected $casts = [
         'answers' => 'array',
+        'raw_answers' => 'array',
+        'dimension_scores' => 'array',
+        'interpretation' => 'array',
+        'completed_at' => 'datetime',
         'score_r' => 'integer',
         'score_i' => 'integer',
         'score_a' => 'integer',

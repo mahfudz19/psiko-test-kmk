@@ -10,6 +10,7 @@ use App\Models\MentorBooking;
 use App\Models\Post;
 use App\Models\PostCategory;
 use App\Models\PsychometricTest;
+use App\Services\Psychometrics\PsychometricManager;
 use App\Models\RiasecAssessment;
 use App\Models\RiasecQuestion;
 use App\Models\Scholarship;
@@ -451,11 +452,15 @@ class DashboardController extends Controller
 
     public function monitoringTes(Request $request): Response
     {
-        $tests = PsychometricTest::where('is_active', true)->orderBy('order_num')->get();
+        $tests = PsychometricTest::where('is_active', true)
+            ->orderBy('order_num', 'asc')
+            ->orderBy('created_at', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
         $totalActiveTests = $tests->count();
 
         $importedOverallTestIds = RiasecAssessment::where('status', 'selesai')
-            ->whereNotNull('dominant_code')
+            ->where(fn ($q) => $q->whereNotNull('dominant_code')->orWhereNotNull('primary_result'))
             ->pluck('psychometric_test_id')
             ->unique()
             ->toArray();
@@ -473,7 +478,7 @@ class DashboardController extends Controller
             ->get()
             ->map(function ($student) use ($tests, $totalActiveTests) {
                 $assessments = $student->riasecAssessments;
-                $importedAssessments = $assessments->where('status', 'selesai')->filter(fn ($a) => !empty($a->dominant_code));
+                $importedAssessments = $assessments->where('status', 'selesai')->filter(fn ($a) => !empty($a->dominant_code) || !empty($a->primary_result));
                 $importedTestIds = $importedAssessments->pluck('psychometric_test_id')->unique()->toArray();
                 $importedCount = count($importedTestIds);
                 $allImported = $totalActiveTests > 0 && $importedCount >= $totalActiveTests;
@@ -487,6 +492,7 @@ class DashboardController extends Controller
                     return [
                         'id' => $t->id,
                         'name' => $t->name,
+                        'test_type' => $t->test_type,
                         'is_imported' => in_array($t->id, $importedTestIds),
                     ];
                 })->values()->all();
@@ -559,7 +565,7 @@ class DashboardController extends Controller
             $tests = PsychometricTest::where('is_active', true)
                 ->whereNotNull('spreadsheet_url')
                 ->where('spreadsheet_url', '!=', '')
-                ->orderBy('order_num')
+                ->orderBy('order_num', 'asc')->orderBy('created_at', 'asc')->orderBy('id', 'asc')
                 ->get();
 
             if ($tests->isEmpty()) {
@@ -761,7 +767,7 @@ class DashboardController extends Controller
 
         $hasDataRows = false;
         for ($i = 1; $i < count($lines); $i++) {
-            if (trim($lines[$i]) !== '') {
+            if (trim($lines[$i]) !== "") {
                 $hasDataRows = true;
                 break;
             }
@@ -775,108 +781,10 @@ class DashboardController extends Controller
             ];
         }
 
-        $riasecItemMap = [
-            'r' => [1, 3, 7, 14, 21, 22, 37],
-            'i' => [2, 11, 18, 19, 26, 32, 33],
-            'a' => [8, 17, 20, 23, 27, 31, 41],
-            's' => [4, 12, 13, 28, 34, 38, 40],
-            'e' => [5, 10, 15, 16, 29, 36, 42],
-            'c' => [6, 9, 24, 25, 35, 38, 39],
-        ];
-
-        $keywordPatterns = [
-            1 => 'mengulik',
-            2 => 'puzzle',
-            3 => 'bekerja mandiri',
-            4 => 'dalam kelompok',
-            5 => 'target',
-            6 => 'merapikan barang',
-            7 => 'lego',
-            8 => 'seni dan musik',
-            9 => 'instruksi yang jelas',
-            10 => 'meyakinkan teman',
-            11 => 'percobaan',
-            12 => 'menjelaskan sesuatu',
-            13 => 'membantu orang',
-            14 => 'memelihara binatang',
-            15 => 'melebihi waktu',
-            16 => 'menjual sesuatu',
-            17 => 'karya berbentuk tulisan',
-            18 => 'sains',
-            19 => 'tantangan baru',
-            20 => 'menghibur teman',
-            21 => 'cara kerja',
-            22 => 'merakit',
-            23 => 'kreatif',
-            24 => 'memperhatikan detail',
-            25 => 'merapikan catatan',
-            26 => 'penyebab suatu kejadian',
-            27 => 'alat musik',
-            28 => 'budaya berbagai daerah',
-            29 => 'membuka usaha',
-            31 => 'bermain peran',
-            32 => 'mempraktikkan',
-            33 => 'matematika',
-            34 => 'mendiskusikan',
-            35 => 'merapikan kamar',
-            36 => 'memimpin',
-            37 => 'luar ruangan',
-            38 => 'meja-kursi',
-            39 => 'menghitung',
-            40 => 'menolong orang',
-            41 => 'menggambar',
-            42 => 'berbicara di depan umum',
-        ];
-
-        $columnToItemMap = [];
-        $unmappedQuestionCols = [];
-
-        if (!$hasExplicitScores) {
-            foreach ($headers as $colIdx => $header) {
-                if ($colIdx === $emailIndex || $colIdx === $mentorIndex || $colIdx === $dominantCodeIndex) {
-                    continue;
-                }
-
-                $isMeta = false;
-                foreach ($metaColumnPatterns as $pattern) {
-                    if (str_contains($header, $pattern)) {
-                        $isMeta = true;
-                        break;
-                    }
-                }
-                if ($isMeta) continue;
-
-                $matchedNum = null;
-                if (preg_match('/(?:pertanyaan|butir|soal|p)?\s*(\d{1,2})/i', $header, $matches)) {
-                    $num = (int)$matches[1];
-                    if ($num >= 1 && $num <= 42) {
-                        $matchedNum = $num;
-                    }
-                }
-
-                if (!$matchedNum) {
-                    foreach ($keywordPatterns as $itemNum => $keyword) {
-                        if (str_contains($header, $keyword)) {
-                            $matchedNum = $itemNum;
-                            break;
-                        }
-                    }
-                }
-
-                if ($matchedNum) {
-                    $columnToItemMap[$colIdx] = $matchedNum;
-                } else {
-                    $unmappedQuestionCols[] = $colIdx;
-                }
-            }
-
-            if (empty($columnToItemMap) && count($unmappedQuestionCols) >= 6) {
-                foreach ($unmappedQuestionCols as $orderIdx => $colIdx) {
-                    $itemNum = ($orderIdx % 42) + 1;
-                    $columnToItemMap[$colIdx] = $itemNum;
-                }
-            }
-        }
+        $test = PsychometricTest::find($testId);
+        $manager = new PsychometricManager();
+        $testType = $test ? $manager->resolveTypeForTest($test) : 'riasec';
+        $driver = $manager->getDriver($testType);
 
         $timestampIndex = -1;
         foreach ($headers as $idx => $header) {
@@ -917,17 +825,20 @@ class DashboardController extends Controller
         };
 
         $rowsByEmail = [];
+        $stream = fopen('php://memory', 'r+');
+        fwrite($stream, $content);
+        rewind($stream);
 
-        for ($i = 1; $i < count($lines); $i++) {
-            $rowString = trim($lines[$i]);
-            if (empty($rowString)) continue;
+        $lineIdx = 0;
+        while (($row = fgetcsv($stream, 0, $separator)) !== false) {
+            $lineIdx++;
+            if ($lineIdx === 1) continue;
 
-            $row = str_getcsv($rowString, $separator);
             $email = isset($row[$emailIndex]) ? strtolower(trim($row[$emailIndex])) : '';
             if (empty($email)) continue;
 
             $timestampVal = ($timestampIndex !== -1 && isset($row[$timestampIndex])) ? $row[$timestampIndex] : null;
-            $epoch = $parseTimestampToEpoch($timestampVal, $i);
+            $epoch = $parseTimestampToEpoch($timestampVal, $lineIdx);
 
             if (!isset($rowsByEmail[$email]) || $epoch > $rowsByEmail[$email]['epoch']) {
                 $rowsByEmail[$email] = [
@@ -936,6 +847,7 @@ class DashboardController extends Controller
                 ];
             }
         }
+        fclose($stream);
 
         $importedCount = 0;
 
@@ -957,94 +869,30 @@ class DashboardController extends Controller
 
             if (!$user) continue;
 
-            if ($hasExplicitScores) {
-                $scoreR = $scoreIndices['r'] !== -1 && isset($row[$scoreIndices['r']]) ? (int)$row[$scoreIndices['r']] : 15;
-                $scoreI = $scoreIndices['i'] !== -1 && isset($row[$scoreIndices['i']]) ? (int)$row[$scoreIndices['i']] : 22;
-                $scoreA = $scoreIndices['a'] !== -1 && isset($row[$scoreIndices['a']]) ? (int)$row[$scoreIndices['a']] : 24;
-                $scoreS = $scoreIndices['s'] !== -1 && isset($row[$scoreIndices['s']]) ? (int)$row[$scoreIndices['s']] : 26;
-                $scoreE = $scoreIndices['e'] !== -1 && isset($row[$scoreIndices['e']]) ? (int)$row[$scoreIndices['e']] : 20;
-                $scoreC = $scoreIndices['c'] !== -1 && isset($row[$scoreIndices['c']]) ? (int)$row[$scoreIndices['c']] : 17;
-            } else {
-                $itemAnswers = [];
-
-                foreach ($columnToItemMap as $colIdx => $itemNum) {
-                    $val = isset($row[$colIdx]) ? strtolower(trim($row[$colIdx])) : '';
-                    if ($val === '4' || $val === 'ss' || str_contains($val, 'sangat suka') || str_contains($val, 'sangat setuju')) {
-                        $points = 4;
-                    } elseif ($val === '3' || $val === 's' || (str_contains($val, 'suka') && !str_contains($val, 'tidak')) || (str_contains($val, 'setuju') && !str_contains($val, 'tidak'))) {
-                        $points = 3;
-                    } elseif ($val === '2' || $val === 'ts' || (str_contains($val, 'tidak suka') && !str_contains($val, 'sangat')) || (str_contains($val, 'tidak setuju') && !str_contains($val, 'sangat'))) {
-                        $points = 2;
-                    } elseif ($val === '1' || $val === 'sts' || str_contains($val, 'sangat tidak suka') || str_contains($val, 'sangat tidak setuju')) {
-                        $points = 1;
-                    } elseif (is_numeric($val)) {
-                        $points = max(1, min(4, (int) $val));
-                    } else {
-                        $points = 1;
-                    }
-
-                    $itemAnswers[$itemNum] = $points;
-                }
-
-                $calculateDimensionScore = function (array $itemNumbers) use ($itemAnswers): int {
-                    $sum = 0;
-                    foreach ($itemNumbers as $num) {
-                        $sum += $itemAnswers[$num] ?? 1;
-                    }
-                    return min(28, $sum);
-                };
-
-                $scoreR = $calculateDimensionScore($riasecItemMap['r']);
-                $scoreI = $calculateDimensionScore($riasecItemMap['i']);
-                $scoreA = $calculateDimensionScore($riasecItemMap['a']);
-                $scoreS = $calculateDimensionScore($riasecItemMap['s']);
-                $scoreE = $calculateDimensionScore($riasecItemMap['e']);
-                $scoreC = $calculateDimensionScore($riasecItemMap['c']);
-            }
-
-            $dominantCode = null;
-            if ($dominantCodeIndex !== -1 && !empty($row[$dominantCodeIndex])) {
-                $dominantCode = strtoupper(trim($row[$dominantCodeIndex]));
-            } else {
-                $dims = [
-                    'R' => $scoreR,
-                    'I' => $scoreI,
-                    'A' => $scoreA,
-                    'S' => $scoreS,
-                    'E' => $scoreE,
-                    'C' => $scoreC,
-                ];
-                arsort($dims);
-                $dominantCode = implode('', array_slice(array_keys($dims), 0, 3));
-            }
-
             $mentorName = $mentorIndex !== -1 && !empty($row[$mentorIndex])
                 ? trim($row[$mentorIndex])
                 : ($user->selected_mentor ?? 'Bpk. Budi Santoso, M.Psi');
 
-            $customDimensions = [];
-            foreach (['r', 'i', 'a', 's', 'e', 'c'] as $dim) {
-                $code = strtoupper($dim);
-                $dimData = [];
-                if ($descIndices[$dim] !== -1 && isset($row[$descIndices[$dim]]) && trim($row[$descIndices[$dim]]) !== '') {
-                    $dimData['desc'] = trim($row[$descIndices[$dim]]);
-                }
-                if ($majorsIndices[$dim] !== -1 && isset($row[$majorsIndices[$dim]]) && trim($row[$majorsIndices[$dim]]) !== '') {
-                    $dimData['majors'] = trim($row[$majorsIndices[$dim]]);
-                }
-                if (!empty($dimData)) {
-                    $customDimensions[$code] = $dimData;
-                }
+            $calculation = $driver->calculate($rawHeaders, $row, $test?->config ?? []);
+
+            $scoreR = null;
+            $scoreI = null;
+            $scoreA = null;
+            $scoreS = null;
+            $scoreE = null;
+            $scoreC = null;
+
+            if ($testType === 'riasec') {
+                $dimScores = $calculation['dimension_scores'] ?? [];
+                $scoreR = $dimScores['r'] ?? 0;
+                $scoreI = $dimScores['i'] ?? 0;
+                $scoreA = $dimScores['a'] ?? 0;
+                $scoreS = $dimScores['s'] ?? 0;
+                $scoreE = $dimScores['e'] ?? 0;
+                $scoreC = $dimScores['c'] ?? 0;
             }
 
-            $existingAssessment = RiasecAssessment::where('user_id', $user->id)
-                ->where('psychometric_test_id', $testId)
-                ->first();
-
-            $existingAnswers = is_array($existingAssessment?->answers) ? $existingAssessment->answers : [];
-            if (!empty($customDimensions)) {
-                $existingAnswers['dimensions'] = array_merge($existingAnswers['dimensions'] ?? [], $customDimensions);
-            }
+            $primaryResult = $calculation['primary_result'] ?? ($calculation['dominant_code'] ?? null);
 
             RiasecAssessment::updateOrCreate(
                 [
@@ -1052,16 +900,21 @@ class DashboardController extends Controller
                     'psychometric_test_id' => $testId,
                 ],
                 [
+                    'test_type' => $testType,
                     'score_r' => $scoreR,
                     'score_i' => $scoreI,
                     'score_a' => $scoreA,
                     'score_s' => $scoreS,
                     'score_e' => $scoreE,
                     'score_c' => $scoreC,
-                    'dominant_code' => $dominantCode,
+                    'dominant_code' => $calculation['dominant_code'] ?? $primaryResult,
+                    'primary_result' => $primaryResult,
+                    'dimension_scores' => $calculation['dimension_scores'] ?? null,
+                    'raw_answers' => $calculation['raw_answers'] ?? null,
+                    'interpretation' => $calculation['interpretation'] ?? null,
                     'mentor_name' => $mentorName,
                     'status' => 'selesai',
-                    'answers' => !empty($existingAnswers) ? $existingAnswers : null,
+                    'completed_at' => now(),
                 ]
             );
 
@@ -1085,65 +938,13 @@ class DashboardController extends Controller
 
     public function updateStudentScore(Request $request, int $id): RedirectResponse
     {
-        $validated = $request->validate([
-            'score_r' => ['required', 'integer', 'min:0', 'max:28'],
-            'score_i' => ['required', 'integer', 'min:0', 'max:28'],
-            'score_a' => ['required', 'integer', 'min:0', 'max:28'],
-            'score_s' => ['required', 'integer', 'min:0', 'max:28'],
-            'score_e' => ['required', 'integer', 'min:0', 'max:28'],
-            'score_c' => ['required', 'integer', 'min:0', 'max:28'],
-            'dominant_code' => ['nullable', 'string', 'max:10'],
-            'mentor_name' => ['nullable', 'string', 'max:255'],
-            'psychometric_test_id' => ['nullable', 'integer'],
-            'dimension_customizations' => ['nullable', 'array'],
-        ]);
-
         $student = User::findOrFail($id);
 
-        $testId = $validated['psychometric_test_id']
-            ?? PsychometricTest::where('is_active', true)->orderBy('order_num')->first()?->id;
+        $testId = (int) ($request->input('psychometric_test_id')
+            ?? PsychometricTest::where('is_active', true)->orderBy('order_num', 'asc')->orderBy('created_at', 'asc')->orderBy('id', 'asc')->first()?->id);
 
-        $dominantCode = $validated['dominant_code'];
-        if (empty($dominantCode)) {
-            $dims = [
-                'R' => $validated['score_r'],
-                'I' => $validated['score_i'],
-                'A' => $validated['score_a'],
-                'S' => $validated['score_s'],
-                'E' => $validated['score_e'],
-                'C' => $validated['score_c'],
-            ];
-            arsort($dims);
-            $dominantCode = implode('', array_slice(array_keys($dims), 0, 3));
-        }
-
-        $existingAssessment = RiasecAssessment::where('user_id', $student->id)
-            ->where('psychometric_test_id', $testId)
-            ->first();
-
-        $answers = is_array($existingAssessment?->answers) ? $existingAssessment->answers : [];
-        if (isset($validated['dimension_customizations'])) {
-            $answers['dimensions'] = $validated['dimension_customizations'];
-        }
-
-        RiasecAssessment::updateOrCreate(
-            [
-                'user_id' => $student->id,
-                'psychometric_test_id' => $testId,
-            ],
-            [
-                'score_r' => $validated['score_r'],
-                'score_i' => $validated['score_i'],
-                'score_a' => $validated['score_a'],
-                'score_s' => $validated['score_s'],
-                'score_e' => $validated['score_e'],
-                'score_c' => $validated['score_c'],
-                'dominant_code' => strtoupper($dominantCode),
-                'mentor_name' => !empty($validated['mentor_name']) ? $validated['mentor_name'] : ($existingAssessment?->mentor_name ?? 'Bpk. Budi Santoso, M.Psi'),
-                'status' => 'selesai',
-                'answers' => !empty($answers) ? $answers : null,
-            ]
-        );
+        $manager = new PsychometricManager();
+        $manager->updateStudentAssessment($student, $testId, $request->all());
 
         return back()->with('success', "Skor asesmen untuk {$student->name} berhasil diperbarui.");
     }

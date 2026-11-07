@@ -7,6 +7,7 @@ use App\Models\Major;
 use App\Models\MentorBooking;
 use App\Models\PsychometricTest;
 use App\Models\RiasecAssessment;
+use App\Services\Psychometrics\PsychometricManager;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,43 +19,85 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        $tests = PsychometricTest::where('is_active', true)->orderBy('order_num')->get();
+        $manager = new PsychometricManager();
+        $tests = PsychometricTest::where('is_active', true)
+            ->orderBy('order_num', 'asc')
+            ->orderBy('created_at', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
         $totalActiveTests = $tests->count();
 
         $assessments = RiasecAssessment::where('user_id', $user->id)
             ->where('status', 'selesai')
-            ->whereNotNull('dominant_code')
+            ->where(fn ($q) => $q->whereNotNull('dominant_code')->orWhereNotNull('primary_result'))
             ->get();
 
         $completedCount = $assessments->pluck('psychometric_test_id')->unique()->count();
         $allCompleted = $totalActiveTests > 0 && $completedCount >= $totalActiveTests;
 
-        $latestAssessment = $assessments->sortByDesc('updated_at')->first()
-            ?? RiasecAssessment::where('user_id', $user->id)->latest()->first();
+        $completedBadges = [];
+        $consolidatedMajors = [];
+        $instrumentDetails = [];
 
-        $topDimensionName = 'Sains & Teknologi';
-        if ($latestAssessment && !empty($latestAssessment->dominant_code)) {
-            $dimScores = [
-                'R' => $latestAssessment->score_r,
-                'I' => $latestAssessment->score_i,
-                'A' => $latestAssessment->score_a,
-                'S' => $latestAssessment->score_s,
-                'E' => $latestAssessment->score_e,
-                'C' => $latestAssessment->score_c,
-            ];
-            arsort($dimScores);
-            $topKey = array_key_first($dimScores);
+        foreach ($tests as $index => $test) {
+            $testType = $manager->resolveTypeForTest($test);
+            $asm = $assessments->firstWhere('psychometric_test_id', $test->id);
+            $isCompleted = !empty($asm);
+            $code = $asm?->dominant_code ?? ($asm?->primary_result ?? null);
+            $interpretation = $asm?->interpretation ?? [];
+            $dimScores = $asm?->dimension_scores ?? [];
 
-            $topDimensionName = match ($topKey) {
-                'R' => 'Teknik & Rekayasa',
-                'I' => 'Sains & Teknologi',
-                'A' => 'Seni & Desain Kreatif',
-                'S' => 'Sosial & Pendidikan',
-                'E' => 'Bisnis & Manajemen',
-                'C' => 'Administrasi & Data',
-                default => 'Sains & Teknologi',
+            $categoryLabel = match ($testType) {
+                'riasec' => 'Minat Vokasional',
+                'papi_kostick' => 'Dinamika Kerja',
+                'disc' => 'Pola Perilaku',
+                'mbti' => 'Tipe Kepribadian',
+                default => 'Potensi Diri',
             };
+
+            if ($isCompleted && $code) {
+                $completedBadges[] = [
+                    'test_id' => $test->id,
+                    'test_type' => $testType,
+                    'test_name' => $test->name,
+                    'code' => $code,
+                    'title' => $interpretation['type_name'] ?? $code,
+                ];
+
+                if (!empty($interpretation['majors']) && is_array($interpretation['majors'])) {
+                    foreach ($interpretation['majors'] as $m) {
+                        $consolidatedMajors[] = trim($m);
+                    }
+                }
+            }
+
+            $instrumentDetails[] = [
+                'id' => $test->id,
+                'name' => $test->name,
+                'label' => "Alat Tes " . ($index + 1),
+                'test_type' => $testType,
+                'category_label' => $categoryLabel,
+                'is_completed' => $isCompleted,
+                'dominant_code' => $code ?? '-',
+                'type_name' => $interpretation['type_name'] ?? ($code ? "Profil {$code}" : null),
+                'summary' => $interpretation['summary'] ?? null,
+                'dimension_scores' => $dimScores,
+                'interpretation' => $interpretation,
+                'score_r' => $asm?->score_r ?? ($dimScores['r'] ?? 0),
+                'score_i' => $asm?->score_i ?? ($dimScores['i'] ?? 0),
+                'score_a' => $asm?->score_a ?? ($dimScores['a'] ?? 0),
+                'score_s' => $asm?->score_s ?? ($dimScores['s'] ?? 0),
+                'score_e' => $asm?->score_e ?? ($dimScores['e'] ?? 0),
+                'score_c' => $asm?->score_c ?? ($dimScores['c'] ?? 0),
+            ];
         }
+
+        $consolidatedMajors = array_values(array_unique(array_filter($consolidatedMajors)));
+        if (empty($consolidatedMajors)) {
+            $consolidatedMajors = ['Teknik Informatika', 'Manajemen Bisnis', 'Ilmu Komunikasi', 'Psikologi', 'Desain Komunikasi Visual'];
+        }
+
+        $latestAssessment = $assessments->sortByDesc('updated_at')->first();
 
         $testStatus = [
             'statusText' => $allCompleted ? 'Selesai' : ($completedCount > 0 ? "Dalam Proses ({$completedCount}/{$totalActiveTests} Tes)" : 'Belum Dikerjakan'),
@@ -62,8 +105,8 @@ class DashboardController extends Controller
             'completedCount' => $completedCount,
             'totalTests' => $totalActiveTests,
             'hasStarted' => $completedCount > 0,
-            'dominantCode' => $latestAssessment?->dominant_code ?? null,
-            'topDimension' => $topDimensionName,
+            'dominantCode' => $latestAssessment?->dominant_code ?? ($latestAssessment?->primary_result ?? null),
+            'badges' => $completedBadges,
         ];
 
         $savedMajorsCount = $user->savedMajors()->count();
@@ -97,57 +140,28 @@ class DashboardController extends Controller
             ];
         }
 
+        $riasecAsm = $assessments->first(function ($a) use ($manager, $tests) {
+            $t = $tests->firstWhere('id', $a->psychometric_test_id);
+            return $t && $manager->resolveTypeForTest($t) === 'riasec';
+        }) ?? $latestAssessment;
+
         $radarScores = [
-            'R' => $latestAssessment?->score_r ?? 0,
-            'I' => $latestAssessment?->score_i ?? 0,
-            'A' => $latestAssessment?->score_a ?? 0,
-            'S' => $latestAssessment?->score_s ?? 0,
-            'E' => $latestAssessment?->score_e ?? 0,
-            'C' => $latestAssessment?->score_c ?? 0,
+            'R' => $riasecAsm?->score_r ?? 0,
+            'I' => $riasecAsm?->score_i ?? 0,
+            'A' => $riasecAsm?->score_a ?? 0,
+            'S' => $riasecAsm?->score_s ?? 0,
+            'E' => $riasecAsm?->score_e ?? 0,
+            'C' => $riasecAsm?->score_c ?? 0,
         ];
-
-        $hasAssessmentScores = !empty($latestAssessment?->dominant_code);
-
-        $testComparisons = $tests->map(function ($test, $index) use ($assessments) {
-            $asm = $assessments->firstWhere('psychometric_test_id', $test->id);
-            $scoreR = $asm?->score_r ?? 0;
-            $scoreI = $asm?->score_i ?? 0;
-            $scoreA = $asm?->score_a ?? 0;
-            $scoreS = $asm?->score_s ?? 0;
-            $scoreE = $asm?->score_e ?? 0;
-            $scoreC = $asm?->score_c ?? 0;
-            $totalScore = $scoreR + $scoreI + $scoreA + $scoreS + $scoreE + $scoreC;
-            $maxPossible = 28 * 6;
-            $avgScore = $asm ? round($totalScore / 6, 1) : 0;
-            $heightPct = $asm ? min(100, max(15, (int) round(($totalScore / $maxPossible) * 100))) : 8;
-
-            return [
-                'id' => $test->id,
-                'name' => $test->name,
-                'label' => "Alat Tes " . ($index + 1),
-                'is_completed' => !empty($asm),
-                'dominant_code' => $asm?->dominant_code ?? '-',
-                'totalScore' => $totalScore,
-                'avgScore' => $avgScore,
-                'height' => "{$heightPct}%",
-                'scores' => [
-                    'R' => $scoreR,
-                    'I' => $scoreI,
-                    'A' => $scoreA,
-                    'S' => $scoreS,
-                    'E' => $scoreE,
-                    'C' => $scoreC,
-                ],
-            ];
-        })->values()->all();
 
         return Inertia::render('Student/Dashboard', [
             'testStatus' => $testStatus,
             'exploration' => $exploration,
             'mentoring' => $mentoring,
             'radarScores' => $radarScores,
-            'hasAssessmentScores' => $hasAssessmentScores,
-            'testComparisons' => $testComparisons,
+            'hasAssessmentScores' => $completedCount > 0,
+            'testPortfolios' => $instrumentDetails,
+            'consolidatedMajors' => array_slice($consolidatedMajors, 0, 6),
         ]);
     }
 }

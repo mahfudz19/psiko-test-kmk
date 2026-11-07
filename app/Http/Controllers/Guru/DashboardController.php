@@ -12,6 +12,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Http\RedirectResponse;
+use App\Services\Psychometrics\PsychometricManager;
 
 class DashboardController extends Controller
 {
@@ -160,7 +162,7 @@ class DashboardController extends Controller
             ]);
         }
 
-        $tests = PsychometricTest::where('is_active', true)->orderBy('order_num')->get();
+        $tests = PsychometricTest::where('is_active', true)->orderBy('order_num', 'asc')->orderBy('created_at', 'asc')->orderBy('id', 'asc')->get();
         $totalActiveTests = $tests->count();
 
         $guruNames = array_unique(array_filter([trim($guru->name), trim($guru->mentor?->name ?? '')]));
@@ -178,7 +180,7 @@ class DashboardController extends Controller
             ->get()
             ->map(function ($student) use ($tests, $totalActiveTests, $guru) {
                 $assessments = $student->riasecAssessments;
-                $completedAssessments = $assessments->where('status', 'selesai')->filter(fn ($a) => !empty($a->dominant_code));
+                $completedAssessments = $assessments->where('status', 'selesai')->filter(fn ($a) => !empty($a->dominant_code) || !empty($a->primary_result));
                 $completedTestIds = $completedAssessments->pluck('psychometric_test_id')->unique()->toArray();
                 $completedCount = count($completedTestIds);
                 $allCompleted = $totalActiveTests > 0 && $completedCount >= $totalActiveTests;
@@ -188,6 +190,7 @@ class DashboardController extends Controller
                     return [
                         'id' => $t->id,
                         'name' => $t->name,
+                        'test_type' => $t->test_type,
                         'is_imported' => in_array($t->id, $completedTestIds),
                     ];
                 })->values()->all();
@@ -203,7 +206,7 @@ class DashboardController extends Controller
                     'totalTests' => $totalActiveTests,
                     'importedCount' => $completedCount,
                     'imported_tests' => $importedTests,
-                    'dominantCode' => $activeAssessment?->dominant_code ?? '-',
+                    'dominantCode' => $activeAssessment?->dominant_code ?? ($activeAssessment?->primary_result ?? '-'),
                     'mentor_name' => $activeAssessment?->mentor_name ?? ($student->selected_mentor ?? $guru->name),
                     'assessment' => $activeAssessment,
                     'assessments' => $completedAssessments->values()->all(),
@@ -216,6 +219,27 @@ class DashboardController extends Controller
             'guruName' => $guru->name,
             'tests' => $tests,
         ]);
+    }
+
+    public function updateStudentScore(Request $request, int $id): RedirectResponse
+    {
+        $guru = $request->user();
+        $student = User::where('role', 'siswa')
+            ->where(function ($q) use ($guru) {
+                if (!empty($guru->npsn)) {
+                    $q->where('npsn', $guru->npsn);
+                }
+                $q->orWhere('selected_mentor', $guru->name);
+            })
+            ->findOrFail($id);
+
+        $testId = (int) ($request->input('psychometric_test_id')
+            ?? PsychometricTest::where('is_active', true)->orderBy('order_num', 'asc')->orderBy('created_at', 'asc')->orderBy('id', 'asc')->first()?->id);
+
+        $manager = new PsychometricManager();
+        $manager->updateStudentAssessment($student, $testId, $request->all());
+
+        return back()->with('success', "Skor asesmen untuk {$student->name} berhasil diperbarui.");
     }
 
     public function profile(Request $request): Response

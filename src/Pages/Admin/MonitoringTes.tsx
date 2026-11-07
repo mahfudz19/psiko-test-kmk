@@ -104,12 +104,13 @@ export default function MonitoringTes({
 
   return (
     <PortalLayout role="admin" menuItems={adminMenuItems} activeId="monitoring_tes">
-      {currentStudent && ((currentStudent.importedCount ?? 0) > 0 || currentStudent.assessment) ? (
+      {currentStudent ? (
         <StudentRiasecDetail
           student={currentStudent}
           tests={tests}
           onBack={() => setSelectedStudent(null)}
           canEdit={true}
+          updateUrl={`/admin/monitoring-tes/${currentStudent.id}`}
         />
       ) : (
         <div className="space-y-6">
@@ -148,11 +149,10 @@ export default function MonitoringTes({
                   tests.map((t) => (
                     <span
                       key={t.id}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition ${
-                        t.is_imported
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition ${t.is_imported
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : 'bg-gray-50 text-gray-400 border border-dashed border-gray-200'
-                      }`}
+                        }`}
                     >
                       {t.is_imported ? (
                         <Check size={13} className="text-emerald-600 shrink-0" />
@@ -183,7 +183,7 @@ export default function MonitoringTes({
                 className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-indigo-200 transition cursor-pointer"
               >
                 <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-                Sinkronkan Spreadsheet
+                Sinkronkan
               </button>
             </div>
           </div>

@@ -12,9 +12,11 @@ class PsychometricTest extends Model
 
     protected $fillable = [
         'name',
+        'test_type',
         'description',
         'gform_url',
         'spreadsheet_url',
+        'config',
         'estimated_minutes',
         'order_num',
         'is_active',
@@ -26,6 +28,7 @@ class PsychometricTest extends Model
             'is_active' => 'boolean',
             'estimated_minutes' => 'integer',
             'order_num' => 'integer',
+            'config' => 'array',
         ];
     }
 

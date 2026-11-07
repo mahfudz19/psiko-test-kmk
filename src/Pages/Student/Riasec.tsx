@@ -74,21 +74,197 @@ export default function StudentRiasec({
     setInAvailableTestsSession(true)
   }
 
-  const demoAssessmentData: RiasecAssessmentData = {
-    dominant_code: 'RSI',
-    score_r: 22,
-    score_s: 22,
-    score_i: 21,
-    score_e: 21,
-    score_a: 20,
-    score_c: 20,
-    mentor_name: selectedMentor,
-    user: {
+  const demoTests = React.useMemo(() => {
+    return tests.map((t) => ({
+      ...t,
+      is_completed: true,
+      has_score: true,
+      is_locked: false,
+    }))
+  }, [tests])
+
+  const demoAssessments: RiasecAssessmentData[] = React.useMemo(() => {
+    const userInfo = {
       name: user?.name || 'Andi Pratama',
       npsn: user?.npsn || '20101111',
       school: user?.school || 'SMAN 1 Jakarta',
-    },
-  }
+    }
+
+    return tests.map((t) => {
+      const type =
+        t.test_type ||
+        (t.name.toLowerCase().includes('papi')
+          ? 'papi_kostick'
+          : t.name.toLowerCase().includes('disc')
+          ? 'disc'
+          : t.name.toLowerCase().includes('mbti')
+          ? 'mbti'
+          : 'riasec')
+
+      if (type === 'papi_kostick') {
+        const papiScores: Record<string, number> = {
+          G: 6, L: 5, I: 5, T: 6, V: 2,
+          S: 5, R: 2, D: 4, C: 4, E: 4,
+          N: 3, A: 3, P: 7, X: 3, B: 4,
+          O: 8, Z: 3, K: 6, F: 3, W: 7,
+        }
+        return {
+          id: t.id,
+          psychometric_test_id: t.id,
+          test_type: 'papi_kostick',
+          status: 'selesai',
+          primary_result: 'O:8-P:7-W:7',
+          dominant_code: 'O:8-P:7-W:7',
+          dimension_scores: papiScores,
+          interpretation: {
+            type_name: 'Profil PAPI Kostick',
+            summary:
+              'Menunjukkan dinamika kerja dominan pada Need for Closeness, Need to Control Others, dan Need for Rules and Supervision.',
+            top_aspects: [
+              {
+                code: 'O',
+                score: 8,
+                name: 'Need for Closeness',
+                area: 'Sifat Sosial',
+                desc: 'Kebutuhan akan kehangatan emosional dan persahabatan yang akrab serta mendalam.',
+              },
+              {
+                code: 'P',
+                score: 7,
+                name: 'Need to Control Others',
+                area: 'Kepemimpinan',
+                desc: 'Dorongan untuk mengarahkan, mengatur, dan mengendalikan langkah orang lain.',
+              },
+              {
+                code: 'W',
+                score: 7,
+                name: 'Need for Rules and Supervision',
+                area: 'Ketaatan',
+                desc: 'Kebutuhan terhadap regulasi yang jelas, pedoman tertulis, dan kepatuhan aturan.',
+              },
+            ],
+            majors: [
+              'Manajemen Bisnis & Kewirausahaan',
+              'Ilmu Hukum',
+              'Ilmu Komunikasi & Hubungan Masyarakat',
+              'Psikologi & Bimbingan Konseling',
+            ],
+          },
+          mentor_name: selectedMentor,
+          user: userInfo,
+          psychometric_test: t,
+        }
+      }
+
+      if (type === 'disc') {
+        return {
+          id: t.id,
+          psychometric_test_id: t.id,
+          test_type: 'disc',
+          status: 'selesai',
+          primary_result: 'D',
+          dominant_code: 'D',
+          dimension_scores: {
+            graph1_most: { D: 16, I: 8, S: 7, C: 5 },
+            graph2_least: { D: 4, I: 9, S: 11, C: 12 },
+            graph3_diff: { D: 12, I: -1, S: -4, C: -7 },
+            d: 12,
+            i: -1,
+            s: -4,
+            c: -7,
+          },
+          interpretation: {
+            type_name: 'Dominance (Penggerak & Pengambil Keputusan)',
+            summary:
+              'Menyukai tantangan, berorientasi hasil, mandiri, berani mengambil risiko, dan tegas dalam memimpin.',
+            majors: [
+              'Manajemen Bisnis',
+              'Teknik Industri',
+              'Ilmu Hukum',
+              'Kewirausahaan',
+            ],
+          },
+          mentor_name: selectedMentor,
+          user: userInfo,
+          psychometric_test: t,
+        }
+      }
+
+      if (type === 'mbti') {
+        return {
+          id: t.id,
+          psychometric_test_id: t.id,
+          test_type: 'mbti',
+          status: 'selesai',
+          primary_result: 'INTJ',
+          dominant_code: 'INTJ',
+          dimension_scores: {
+            E: 4,
+            I: 11,
+            S: 3,
+            N: 12,
+            T: 10,
+            F: 5,
+            J: 11,
+            P: 4,
+            percentages: {
+              E: 27,
+              I: 73,
+              S: 20,
+              N: 80,
+              T: 67,
+              F: 33,
+              J: 73,
+              P: 27,
+            },
+          },
+          interpretation: {
+            type_name: 'The Architect (Ahli Strategi Visioner)',
+            summary:
+              'Pemikir imajinatif dan strategis, dengan rencana untuk segala sesuatunya.',
+            majors: [
+              'Teknik Informatika',
+              'Data Science',
+              'Fisika Teoretis',
+              'Teknik Elektro',
+              'Ilmu Hukum',
+            ],
+            percentages: {
+              E: 27,
+              I: 73,
+              S: 20,
+              N: 80,
+              T: 67,
+              F: 33,
+              J: 73,
+              P: 27,
+            },
+          },
+          mentor_name: selectedMentor,
+          user: userInfo,
+          psychometric_test: t,
+        }
+      }
+
+      return {
+        id: t.id,
+        psychometric_test_id: t.id,
+        test_type: 'riasec',
+        status: 'selesai',
+        dominant_code: 'RSI',
+        primary_result: 'RSI',
+        score_r: 24,
+        score_s: 22,
+        score_i: 21,
+        score_e: 20,
+        score_a: 19,
+        score_c: 18,
+        mentor_name: selectedMentor,
+        user: userInfo,
+        psychometric_test: t,
+      }
+    })
+  }, [tests, user, selectedMentor])
 
   return (
     <PortalLayout role="siswa" menuItems={studentMenuItems} activeId="minat_bakat">
@@ -97,7 +273,7 @@ export default function StudentRiasec({
           <div className="space-y-4">
             <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-indigo-900">
               <span className="font-semibold">
-                Mode Demo: Ini adalah simulasi visual laporan hasil tes RIASEC setelah seluruh asesmen selesai dinilai.
+                Mode Demo: Ini adalah simulasi visual laporan hasil asesmen lengkap untuk semua instrumen tes (RIASEC, PAPI Kostick, DiSC, MBTI).
               </span>
               <button
                 type="button"
@@ -108,7 +284,9 @@ export default function StudentRiasec({
               </button>
             </div>
             <RiasecResultView
-              assessment={demoAssessmentData}
+              assessment={demoAssessments[0] || null}
+              assessments={demoAssessments}
+              tests={demoTests}
               user={user}
               onBack={() => setIsDemoView(false)}
               backButtonLabel="Tutup Demo & Kembali"
