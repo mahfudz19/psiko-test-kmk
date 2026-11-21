@@ -20,6 +20,15 @@ export default function DiscProfileChart({ dimensionScores = {} }: DiscProfileCh
   }
 
   const dimensions = ['D', 'I', 'S', 'C']
+  const allValues = [
+    ...dimensions.map((d) => g1[d] ?? 0),
+    ...dimensions.map((d) => g2[d] ?? 0),
+    ...dimensions.map((d) => g3[d] ?? 0),
+  ]
+  const rawMin = Math.min(0, ...allValues)
+  const rawMax = Math.max(12, ...allValues)
+  const sharedMin = rawMin < 0 ? Math.min(-6, rawMin - 2) : -4
+  const sharedMax = Math.max(14, rawMax + 2)
 
   const renderSingleGraph = (
     title: string,
@@ -33,8 +42,8 @@ export default function DiscProfileChart({ dimensionScores = {} }: DiscProfileCh
     const width = 180
     const height = 150
     const paddingX = 25
-    const paddingTop = 20
-    const paddingBottom = 25
+    const paddingTop = 22
+    const paddingBottom = 28
     const innerH = height - paddingTop - paddingBottom
     const innerW = width - paddingX * 2
 
@@ -53,11 +62,18 @@ export default function DiscProfileChart({ dimensionScores = {} }: DiscProfileCh
     const pathD = points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
 
     return (
-      <div className="bg-slate-50/80 rounded-2xl p-3.5 border border-slate-200/80 flex flex-col items-center">
-        <h4 className="text-xs font-bold text-slate-800 tracking-tight">{title}</h4>
-        <span className="text-[10px] text-slate-400 mb-1">{subtitle}</span>
+      <div className="bg-slate-50/80 rounded-2xl p-3.5 border border-slate-200/80 flex flex-col items-center h-full">
+        <h4 className="text-xs font-bold text-slate-800 tracking-tight text-center">{title}</h4>
+        <span className="text-[10px] text-slate-400 mb-1 text-center min-h-[28px] flex items-center justify-center leading-tight">
+          {subtitle}
+        </span>
 
-        <svg width={width} height={height} className="overflow-visible select-none">
+        <svg
+          width={width}
+          height={height}
+          viewBox={`0 0 ${width} ${height}`}
+          className="w-full max-w-[180px] h-auto overflow-visible select-none mt-auto"
+        >
           <line
             x1={paddingX}
             y1={getY(0)}
@@ -104,8 +120,8 @@ export default function DiscProfileChart({ dimensionScores = {} }: DiscProfileCh
         g1,
         '#2563eb',
         '#dbeafe',
-        0,
-        24
+        sharedMin,
+        sharedMax
       )}
       {renderSingleGraph(
         'Grafik 2 (Core)',
@@ -113,8 +129,8 @@ export default function DiscProfileChart({ dimensionScores = {} }: DiscProfileCh
         g2,
         '#dc2626',
         '#fee2e2',
-        0,
-        24
+        sharedMin,
+        sharedMax
       )}
       {renderSingleGraph(
         'Grafik 3 (Mirror)',
@@ -122,8 +138,8 @@ export default function DiscProfileChart({ dimensionScores = {} }: DiscProfileCh
         g3,
         '#059669',
         '#d1fae5',
-        -20,
-        20
+        sharedMin,
+        sharedMax
       )}
     </div>
   )

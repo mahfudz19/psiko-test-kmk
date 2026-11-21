@@ -14,6 +14,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\RedirectResponse;
 use App\Services\Psychometrics\PsychometricManager;
+use App\Services\Psychometrics\SpreadsheetSyncService;
 
 class DashboardController extends Controller
 {
@@ -161,6 +162,8 @@ class DashboardController extends Controller
                 'tests' => [],
             ]);
         }
+
+        (new SpreadsheetSyncService())->syncPendingTestsIfNeeded();
 
         $tests = PsychometricTest::where('is_active', true)->orderBy('order_num', 'asc')->orderBy('created_at', 'asc')->orderBy('id', 'asc')->get();
         $totalActiveTests = $tests->count();
