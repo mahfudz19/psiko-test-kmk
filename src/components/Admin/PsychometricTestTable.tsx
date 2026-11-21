@@ -99,7 +99,16 @@ export default function PsychometricTestTable({
                       {idx + 1}
                     </td>
                     <td className="py-4 px-4 font-bold text-gray-900">
-                      {test.name}
+                      <div>{test.name}</div>
+                      <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase">
+                        {test.test_type === 'papi_kostick'
+                          ? 'PAPI Kostick'
+                          : test.test_type === 'disc'
+                          ? 'DiSC'
+                          : test.test_type === 'mbti'
+                          ? 'MBTI'
+                          : 'RIASEC'}
+                      </span>
                     </td>
                     <td className="py-4 px-4 text-gray-600 text-xs leading-relaxed">
                       {test.description}

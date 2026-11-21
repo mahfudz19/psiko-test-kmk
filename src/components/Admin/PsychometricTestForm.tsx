@@ -5,6 +5,7 @@ import { FileCheck, Check, Users, Save } from 'lucide-react'
 export interface PsychometricTestItem {
   id: number
   name: string
+  test_type?: string
   description: string
   gform_url: string
   spreadsheet_url?: string | null
@@ -29,6 +30,7 @@ export default function PsychometricTestForm({
   onCancelEdit,
 }: PsychometricTestFormProps) {
   const [name, setName] = useState('')
+  const [testType, setTestType] = useState('riasec')
   const [description, setDescription] = useState('')
   const [gformUrl, setGformUrl] = useState('')
   const [spreadsheetUrl, setSpreadsheetUrl] = useState('')
@@ -37,11 +39,13 @@ export default function PsychometricTestForm({
   useEffect(() => {
     if (testToEdit) {
       setName(testToEdit.name)
+      setTestType(testToEdit.test_type || 'riasec')
       setDescription(testToEdit.description)
       setGformUrl(testToEdit.gform_url)
       setSpreadsheetUrl(testToEdit.spreadsheet_url || '')
     } else {
       setName('')
+      setTestType('riasec')
       setDescription('')
       setGformUrl('')
       setSpreadsheetUrl('')
@@ -50,6 +54,7 @@ export default function PsychometricTestForm({
 
   const handleReset = () => {
     setName('')
+    setTestType('riasec')
     setDescription('')
     setGformUrl('')
     setSpreadsheetUrl('')
@@ -62,6 +67,7 @@ export default function PsychometricTestForm({
 
     const payload = {
       name,
+      test_type: testType,
       description,
       gform_url: gformUrl,
       spreadsheet_url: spreadsheetUrl,
@@ -169,6 +175,26 @@ export default function PsychometricTestForm({
             />
             <p className="text-xs text-gray-400 mt-1">
               Gunakan nama resmi alat tes psikometri yang singkat dan mudah dikenal.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-800 mb-1.5">
+              Tipe Alat Tes (Rumus Penilaian) <span className="text-red-500">*</span>
+            </label>
+            <select
+              required
+              value={testType}
+              onChange={(e) => setTestType(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
+            >
+              <option value="riasec">Holland (RIASEC)</option>
+              <option value="papi_kostick">PAPI Kostick</option>
+              <option value="disc">DiSC Psikotest</option>
+              <option value="mbti">Skala MBTI</option>
+            </select>
+            <p className="text-xs text-gray-400 mt-1">
+              Menentukan rumus perhitungan skor otomatis dan tampilan grafik hasil pada rapor siswa.
             </p>
           </div>
 

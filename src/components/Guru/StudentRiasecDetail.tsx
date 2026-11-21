@@ -116,16 +116,30 @@ export default function StudentRiasecDetail({
 
   const activeTest = availableTests.find((t: any) => t.id === activeTestId)
 
-  const activeTestType =
-    activeAssessment?.test_type ||
-    activeTest?.test_type ||
-    (activeTest?.name?.toLowerCase().includes('papi')
-      ? 'papi_kostick'
-      : activeTest?.name?.toLowerCase().includes('disc')
-      ? 'disc'
-      : activeTest?.name?.toLowerCase().includes('mbti')
-      ? 'mbti'
-      : 'riasec')
+  const resolveTestType = (
+    ...candidates: Array<{ type?: string | null; name?: string | null }>
+  ): string => {
+    for (const item of candidates) {
+      const normalized = (item.type || '').toLowerCase().trim()
+      if (normalized === 'papi_kostick' || normalized === 'disc' || normalized === 'mbti') {
+        return normalized
+      }
+    }
+
+    for (const item of candidates) {
+      const name = (item.name || '').toLowerCase()
+      if (name.includes('papi')) return 'papi_kostick'
+      if (name.includes('disc')) return 'disc'
+      if (name.includes('mbti')) return 'mbti'
+    }
+
+    return 'riasec'
+  }
+
+  const activeTestType = resolveTestType(
+    { type: activeAssessment?.test_type, name: activeTest?.name },
+    { type: activeTest?.test_type, name: activeTest?.name }
+  )
 
   const initialR = activeAssessment?.score_r ?? 15
   const initialI = activeAssessment?.score_i ?? 22
