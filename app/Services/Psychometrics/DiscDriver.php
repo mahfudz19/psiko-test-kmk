@@ -156,14 +156,67 @@ class DiscDriver implements ScoringDriverInterface
         return 'disc';
     }
 
+    /**
+     * Rumus Perhitungan Tes DiSC Psikotest (24 Blok × 4 Pernyataan = 96 Kolom)
+     *
+     * Tujuan:
+     * Mengukur 4 dimensi perilaku kerja:
+     * D (Dominance), I (Influence), S (Steadiness), dan C (Conscientiousness)
+     * dalam 3 sudut pandang grafik: Mask (Most), Core (Least), dan Mirror (Selisih).
+     *
+     * Langkah 1 — Pengelompokan 96 Kolom Menjadi 24 Blok Soal:
+     * - Sistem menyaring keluar kolom metadata (`Timestamp`, `Email`, `Nama`, `Kelas`, dll.).
+     * - 96 kolom pernyataan yang tersisa dikelompokkan berurutan per 4 kolom menjadi 24 blok soal (blok 1..24, baris 1..4).
+     * - Setiap kombinasi `(blok, baris)` memiliki pemetaan dimensi Most (`M`) dan Least (`L`) pada `$itemMapping`.
+     *
+     * Langkah 2 — Perhitungan Grafik 1 (Most / Mask) & Grafik 2 (Least / Core):
+     * - Jika sel bernilai `"SESUAI DIRI SAYA"` (mengandung `"SESUAI"` dan tidak mengandung `"TIDAK"`):
+     *   Skor dimensi `M` pada Grafik 1 (`$mostScores`) bertambah +1. (Total ideal Grafik 1 = 24, rentang per dimensi 0..24).
+     * - Jika sel bernilai `"TIDAK SESUAI DIRI SAYA"` (mengandung `"TIDAK SESUAI"`):
+     *   Skor dimensi `L` pada Grafik 2 (`$leastScores`) bertambah +1. (Total ideal Grafik 2 = 24, rentang per dimensi 0..24).
+     *
+     * Langkah 3 — Perhitungan Grafik 3 (Mirror / Selisih M - L):
+     * - Untuk setiap dimensi (D, I, S, C), dihitung selisihnya dengan rumus:
+     *   `Diff[dim] = Most[dim] - Least[dim]` (rentang -24 s.d. +24).
+     * - Contoh: Jika Most I = 8 dan Least I = 6, maka Diff I = 8 - 6 = +2.
+     *   Jika Most D = 6 dan Least D = 8, maka Diff D = 6 - 8 = -2.
+     *
+     * Langkah 4 — Penentuan Kode Profil Dominan:
+     * - Nilai `Diff` keempat dimensi diurutkan dari terbesar ke terkecil (`arsort`).
+     * - Dimensi peringkat 1 menjadi huruf utama; jika dimensi peringkat 2 bernilai > 0, maka digabung menjadi
+     *   profil 2 huruf (contoh: I=+2, S=+1, C=-1, D=-2 -> `"IS"`). Jika peringkat 2 <= 0, cukup 1 huruf (contoh: `"I"`).
+     *
+     * Pemetaan Kolom Tabel Database `riasec_assessments`:
+     * - `user_id`              : ID siswa pemilik asesmen (relasi ke tabel `users`)
+     * - `psychometric_test_id` : ID alat tes DiSC (relasi ke tabel `psychometric_tests`)
+     * - `test_type`            : Bernilai `'disc'`
+     * - `score_r..score_c`     : Bernilai `null` (khusus untuk tes RIASEC)
+     * - `primary_result`       : Kode profil DiSC 1 atau 2 huruf (contoh: `'IS'`, `'D'`)
+     * - `dominant_code`        : Diisi sama dengan `primary_result` saat sinkronisasi spreadsheet
+     * - `dimension_scores`     : JSON berisi `graph1_most` (`{"D":6,"I":8,"S":5,"C":5}`), `graph2_least` (`{"D":8,"I":6,"S":4,"C":6}`),
+     *                            `graph3_diff` (`{"D":-2,"I":2,"S":1,"C":-1}`), serta ringkasan `d`, `i`, `s`, `c`
+     * - `raw_answers`          : JSON jawaban mentah siswa untuk blok 1..24 (masing-masing berisi baris 1..4)
+     * - `interpretation`       : JSON berisi `type_name`, `summary`, `descriptions` (4 dimensi), dan `majors` (rekomendasi jurusan)
+     * - `mentor_name`          : Nama guru/mentor pembimbing yang dipilih siswa atau dari spreadsheet
+     * - `status`               : Status pengerjaan (`'selesai'`)
+     * - `completed_at`         : Timestamp waktu selesai/sinkronisasi
+     */
     public function calculate(array $rowHeaders, array $rowValues, array $config = []): array
     {
         $rawAnswers = [];
         $answerColumns = [];
 
+        $exactMetaHeaders = ['timestamp', 'waktu', 'tanggal', 'nama', 'nama lengkap', 'name', 'kelas', 'class', 'guru', 'mentor', 'pembimbing', 'npsn', 'sekolah', 'school'];
+
         foreach ($rowHeaders as $idx => $header) {
-            $h = strtolower(trim($header));
-            if (str_contains($h, 'timestamp') || str_contains($h, 'email') || str_contains($h, 'waktu') || str_contains($h, 'nama') || str_contains($h, 'kelas')) {
+            $h = strtolower(trim(str_replace(['"', "'", "\xEF\xBB\xBF"], '', $header)));
+            if (
+                in_array($h, $exactMetaHeaders, true) ||
+                str_contains($h, 'timestamp') ||
+                str_contains($h, 'email') ||
+                str_contains($h, 'surel') ||
+                str_contains($h, 'username')
+            ) {
                 continue;
             }
             $answerColumns[] = [

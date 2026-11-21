@@ -1,15 +1,8 @@
 import React, { useState } from 'react'
-import { router } from '@inertiajs/react'
 import {
   Search,
-  FileSpreadsheet,
-  X,
   Check,
   Clock,
-  RefreshCw,
-  AlertCircle,
-  ExternalLink,
-  Link2,
 } from 'lucide-react'
 import PortalLayout from '../../Layouts/PortalLayout'
 import { adminMenuItems } from '../../config/navigation'
@@ -59,10 +52,6 @@ export default function MonitoringTes({
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
 
-  const [syncModalOpen, setSyncModalOpen] = useState(false)
-  const [syncTarget, setSyncTarget] = useState<string>('all')
-  const [isSyncing, setIsSyncing] = useState(false)
-
   const filteredStudents = students.filter((student) => {
     const matchesSearch =
       student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -78,25 +67,6 @@ export default function MonitoringTes({
 
     return matchesSearch && matchesStatus
   })
-
-  const handleSyncSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSyncing(true)
-
-    router.post(
-      '/admin/monitoring-tes/sync-spreadsheet',
-      {
-        test_id: syncTarget,
-      },
-      {
-        preserveScroll: true,
-        onFinish: () => {
-          setIsSyncing(false)
-          setSyncModalOpen(false)
-        },
-      }
-    )
-  }
 
   const currentStudent = selectedStudent
     ? students.find((s) => s.id === selectedStudent.id) || selectedStudent
@@ -141,10 +111,10 @@ export default function MonitoringTes({
                 </span>
               </div>
               <p className="mt-1 text-sm text-gray-500 max-w-xl">
-                Pantau progres dan hasil tes minat bakat seluruh siswa yang terdaftar. Nilai siswa dapat ditarik langsung dari Google Spreadsheet masing-masing formulir tes secara otomatis.
+                Pantau progres dan hasil tes minat bakat seluruh siswa yang terdaftar. Nilai siswa otomatis tersinkronisasi dari Google Spreadsheet saat siswa menyelesaikan alat tes.
               </p>
               <div className="mt-3.5 flex flex-wrap items-center gap-2">
-                <span className="text-xs font-bold text-gray-700">Alat Tes Diimpor:</span>
+                <span className="text-xs font-bold text-gray-700">Status Alat Tes:</span>
                 {tests && tests.length > 0 ? (
                   tests.map((t) => (
                     <span
@@ -162,11 +132,11 @@ export default function MonitoringTes({
                       <span>{t.name}</span>
                       {t.is_imported ? (
                         <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md font-bold">
-                          Sudah Diimpor
+                          Tersinkron
                         </span>
                       ) : (
                         <span className="text-[10px] bg-gray-200/80 text-gray-500 px-1.5 py-0.5 rounded-md font-medium">
-                          Belum Diimpor
+                          Belum Ada Data
                         </span>
                       )}
                     </span>
@@ -175,16 +145,6 @@ export default function MonitoringTes({
                   <span className="text-xs text-gray-400 italic">Belum ada alat tes terdaftar</span>
                 )}
               </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
-              <button
-                type="button"
-                onClick={() => setSyncModalOpen(true)}
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-indigo-200 transition cursor-pointer"
-              >
-                <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-                Sinkronkan
-              </button>
             </div>
           </div>
 
@@ -307,132 +267,6 @@ export default function MonitoringTes({
                 Menampilkan {filteredStudents.length} dari {students.length} siswa
               </span>
             </div>
-          </div>
-        </div>
-      )}
-
-      {syncModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200">
-            <div className="p-6 md:p-7 border-b border-gray-100 flex items-start justify-between">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <FileSpreadsheet className="text-indigo-600" size={24} />
-                  Sinkronisasi Google Spreadsheet
-                </h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  Tarik tanggapan siswa secara otomatis langsung dari Google Spreadsheet masing-masing alat tes.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSyncModalOpen(false)}
-                className="text-gray-400 hover:text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition cursor-pointer"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSyncSubmit} className="p-6 md:p-7 space-y-5">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
-                  PILIH TARGET SINKRONISASI
-                </label>
-                <select
-                  value={syncTarget}
-                  onChange={(e) => setSyncTarget(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm text-gray-800 bg-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition cursor-pointer font-medium"
-                >
-                  <option value="all">Semua Alat Tes Sekaligus (Rekomendasi)</option>
-                  {tests.map((test) => (
-                    <option key={test.id} value={test.id}>
-                      Hanya: {test.name} {test.spreadsheet_url ? '' : '(Belum ada link)'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="p-4 bg-indigo-50/70 rounded-2xl border border-indigo-100 text-xs text-indigo-900 space-y-2">
-                <div className="flex items-center gap-2 font-bold text-indigo-950">
-                  <AlertCircle size={15} className="text-indigo-600 shrink-0" />
-                  <span>Petunjuk Sinkronisasi Otomatis:</span>
-                </div>
-                <p className="leading-relaxed">
-                  Sistem akan langsung terhubung ke tautan Google Spreadsheet masing-masing formulir tes, membaca respon jawaban siswa, dan menghitung skor RIASEC serta menentukan kode profil minat bakatnya secara instan.
-                </p>
-                <p className="leading-relaxed text-indigo-800">
-                  <strong>Penting:</strong> Pastikan setelan berbagi pada Google Spreadsheet telah diatur ke <strong>&quot;Siapa saja yang memiliki link dapat melihat&quot; (Anyone with the link can view)</strong>. Link dapat diatur melalui menu <em>Input Alat Tes</em>.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                    Status Link Google Spreadsheet:
-                  </label>
-                  <a
-                    href="/admin/input-test"
-                    className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-                  >
-                    Atur di Input Alat Tes <ExternalLink size={11} />
-                  </a>
-                </div>
-                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                  {tests.map((t) => {
-                    const hasUrl = Boolean(t.spreadsheet_url)
-                    return (
-                      <div
-                        key={t.id}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/70 text-xs"
-                      >
-                        <div className="flex items-center gap-2 min-w-0 mr-2">
-                          <Link2 size={14} className={hasUrl ? 'text-indigo-600' : 'text-gray-400'} />
-                          <span className="font-semibold text-gray-800 truncate">{t.name}</span>
-                        </div>
-                        {hasUrl ? (
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                              <Check size={12} /> Terhubung
-                            </span>
-                            <a
-                              href={t.spreadsheet_url!}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-gray-400 hover:text-indigo-600 p-1"
-                              title="Buka Spreadsheet"
-                            >
-                              <ExternalLink size={12} />
-                            </a>
-                          </div>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 shrink-0">
-                            Belum Diatur
-                          </span>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSyncModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl border border-gray-200 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 transition cursor-pointer"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSyncing}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold shadow-md shadow-indigo-300/30 transition disabled:opacity-50 cursor-pointer"
-                >
-                  <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-                  {isSyncing ? 'Menyinkronkan...' : 'Mulai Sinkronisasi Data'}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

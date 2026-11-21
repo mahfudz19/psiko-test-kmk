@@ -72,6 +72,52 @@ class MbtiDriver implements ScoringDriverInterface
         return 'mbti';
     }
 
+    /**
+     * Rumus Perhitungan Tes Skala MBTI (60 Butir Pertanyaan)
+     *
+     * Tujuan:
+     * Menentukan tipe kepribadian dari 16 kemungkinan kombinasi 4 huruf berdasarkan 4 pasangan dikotomi:
+     * - EI : Extraversion (E) vs Introversion (I) — 15 butir soal
+     * - SN : Sensing (S)      vs Intuition (N)    — 15 butir soal
+     * - TF : Thinking (T)     vs Feeling (F)      — 15 butir soal
+     * - JP : Judging (J)      vs Perceiving (P)   — 15 butir soal
+     *
+     * Langkah 1 — Pembacaan Data:
+     * - Sistem membaca kolom bernomor `1` s.d. `60` (mendukung format `"1"` atau `"1."`).
+     * - Dari jawaban siswa diambil huruf pertama (`'A'` atau `'B'`).
+     *
+     * Langkah 2 — Akumulasi Skor Kutub (berdasarkan `$itemDimensions`):
+     * - Setiap nomor butir ke-i menentukan dikotomi dan kutub untuk pilihan A (`'a'`) dan pilihan B (`'b'`).
+     * - Contoh butir 1 (`['dim' => 'JP', 'a' => 'P', 'b' => 'J']`):
+     *   Jika siswa memilih `'A'`, skor `P` bertambah +1; jika memilih `'B'`, skor `J` bertambah +1.
+     *
+     * Langkah 3 — Perhitungan Persentase per Pasangan Dikotomi:
+     * - Total pasangan dihitung dengan `max(1, skor_kutub_1 + skor_kutub_2)` untuk mencegah pembagian dengan nol.
+     * - Persentase tiap kutub = `round((skor_kutub / total_pasangan) * 100)`.
+     * - Contoh: Jika E = 9 dan I = 6 (total 15), maka E = round(9/15 * 100) = 60% dan I = round(6/15 * 100) = 40%.
+     *
+     * Langkah 4 — Penentuan Kode Tipe MBTI (4 Huruf):
+     * - Membandingkan skor pada masing-masing 4 pasangan (jika seri, huruf pertama menang `>=`):
+     *   1) E >= I -> `'E'`, selain itu `'I'`
+     *   2) S >= N -> `'S'`, selain itu `'N'`
+     *   3) T >= F -> `'T'`, selain itu `'F'`
+     *   4) J >= P -> `'J'`, selain itu `'P'`
+     * - Keempat huruf digabung menjadi tipe MBTI, contoh: `"ENFP"`, `"INTJ"`.
+     *
+     * Pemetaan Kolom Tabel Database `riasec_assessments`:
+     * - `user_id`              : ID siswa pemilik asesmen (relasi ke tabel `users`)
+     * - `psychometric_test_id` : ID alat tes MBTI (relasi ke tabel `psychometric_tests`)
+     * - `test_type`            : Bernilai `'mbti'`
+     * - `score_r..score_c`     : Bernilai `null` (khusus untuk tes RIASEC)
+     * - `primary_result`       : Kode tipe MBTI 4 huruf (contoh: `'ENFP'`)
+     * - `dominant_code`        : Sama dengan `primary_result` (contoh: `'ENFP'`)
+     * - `dimension_scores`     : JSON berisi skor mentah 8 kutub (`E, I, S, N, T, F, J, P`) dan objek `percentages`
+     * - `raw_answers`          : JSON pilihan mentah siswa untuk butir 1..60, contoh: `{"1":"A. ...","2":"B. ...",...}`
+     * - `interpretation`       : JSON berisi `type_name` (julukan tipe), `summary` (ringkasan karakter), dan `majors` (rekomendasi jurusan)
+     * - `mentor_name`          : Nama guru/mentor pembimbing yang dipilih siswa atau dari spreadsheet
+     * - `status`               : Status pengerjaan (`'selesai'`)
+     * - `completed_at`         : Timestamp waktu selesai/sinkronisasi
+     */
     public function calculate(array $rowHeaders, array $rowValues, array $config = []): array
     {
         $rawAnswers = [];

@@ -11,6 +11,7 @@ use App\Models\Post;
 use App\Models\PostCategory;
 use App\Models\PsychometricTest;
 use App\Services\Psychometrics\PsychometricManager;
+use App\Services\Psychometrics\SpreadsheetSyncService;
 use App\Models\RiasecAssessment;
 use App\Models\RiasecQuestion;
 use App\Models\Scholarship;
@@ -452,6 +453,8 @@ class DashboardController extends Controller
 
     public function monitoringTes(Request $request): Response
     {
+        (new SpreadsheetSyncService())->syncPendingTestsIfNeeded();
+
         $tests = PsychometricTest::where('is_active', true)
             ->orderBy('order_num', 'asc')
             ->orderBy('created_at', 'asc')
@@ -534,7 +537,7 @@ class DashboardController extends Controller
         $testId = (int) $validated['test_id'];
         $content = file_get_contents($request->file('file')->getRealPath());
 
-        $res = $this->processCsvContent($content, $testId);
+        $res = (new SpreadsheetSyncService())->processCsvContent($content, $testId);
 
         if (!$res['success']) {
             return back()->with('error', $res['message']);
@@ -576,29 +579,11 @@ class DashboardController extends Controller
         $successList = [];
         $infoList = [];
         $errorList = [];
+        $syncService = new SpreadsheetSyncService();
 
         foreach ($tests as $t) {
-            $csvUrl = $this->convertToCsvUrl($t->spreadsheet_url);
-
             try {
-                $response = Http::timeout(25)
-                    ->withOptions(['allow_redirects' => true])
-                    ->withoutVerifying()
-                    ->get($csvUrl);
-
-                if (!$response->successful()) {
-                    $errorList[] = "'{$t->name}': Gagal mengunduh spreadsheet (HTTP {$response->status()}).";
-                    continue;
-                }
-
-                $body = $response->body();
-                $lowerBody = strtolower(substr($body, 0, 500));
-                if (str_contains($lowerBody, '<!doctype html') || str_contains($lowerBody, '<html')) {
-                    $errorList[] = "'{$t->name}': Spreadsheet tidak dapat diakses publik. Pastikan pengaturan berbagi (sharing) Google Spreadsheet diatur ke 'Siapa saja yang memiliki link dapat melihat'.";
-                    continue;
-                }
-
-                $res = $this->processCsvContent($body, $t->id);
+                $res = $syncService->syncTest($t, 25);
                 if ($res['success']) {
                     if (($res['importedCount'] ?? 0) > 0) {
                         $successList[] = "{$t->name} ({$res['importedCount']} siswa)";
@@ -633,307 +618,6 @@ class DashboardController extends Controller
 
         $detailError = implode('; ', $errorList);
         return back()->with('error', "Gagal menyinkronkan data spreadsheet: {$detailError}");
-    }
-
-    private function convertToCsvUrl(string $url): string
-    {
-        $url = trim($url);
-
-        if (str_contains($url, 'output=csv') || str_contains($url, 'format=csv')) {
-            return $url;
-        }
-
-        $gid = null;
-        if (preg_match('/[?&#]gid=([0-9]+)/', $url, $gidMatch)) {
-            $gid = $gidMatch[1];
-        }
-
-        if (preg_match('/\/spreadsheets\/d\/e\/([a-zA-Z0-9-_]+)/', $url, $pubMatch)) {
-            $base = "https://docs.google.com/spreadsheets/d/e/{$pubMatch[1]}/pub?output=csv";
-            return $gid ? "{$base}&gid={$gid}" : $base;
-        }
-
-        if (preg_match('/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/', $url, $idMatch)) {
-            $sheetId = $idMatch[1];
-            $base = "https://docs.google.com/spreadsheets/d/{$sheetId}/export?format=csv";
-            return $gid ? "{$base}&gid={$gid}" : $base;
-        }
-
-        return $url;
-    }
-
-    private function processCsvContent(string $content, int $testId): array
-    {
-        $content = trim($content);
-        if ($content === '') {
-            return [
-                'success' => false,
-                'message' => 'Konten spreadsheet kosong atau tidak dapat diunduh.',
-                'importedCount' => 0,
-            ];
-        }
-
-        $lines = preg_split('/\r\n|\r|\n/', $content);
-        if (empty($lines)) {
-            return [
-                'success' => false,
-                'message' => 'Format file CSV tidak valid atau kosong.',
-                'importedCount' => 0,
-            ];
-        }
-
-        $firstLine = $lines[0];
-        $separator = ',';
-        if (substr_count($firstLine, "\t") > substr_count($firstLine, ',')) {
-            $separator = "\t";
-        } elseif (substr_count($firstLine, ';') > substr_count($firstLine, ',')) {
-            $separator = ';';
-        }
-
-        $rawHeaders = str_getcsv($firstLine, $separator);
-        if (empty($rawHeaders) || count($rawHeaders) < 2) {
-            return [
-                'success' => false,
-                'message' => 'Header kolom spreadsheet tidak valid atau tidak terbaca.',
-                'importedCount' => 0,
-            ];
-        }
-
-        $headers = array_map(function ($h) {
-            return strtolower(trim(str_replace(['"', "'", "\xEF\xBB\xBF"], '', $h)));
-        }, $rawHeaders);
-
-        $emailIndex = -1;
-        $scoreIndices = [
-            'r' => -1,
-            'i' => -1,
-            'a' => -1,
-            's' => -1,
-            'e' => -1,
-            'c' => -1,
-        ];
-        $dominantCodeIndex = -1;
-        $mentorIndex = -1;
-
-        $hasExplicitScores = false;
-        $metaColumnPatterns = ['timestamp', 'waktu', 'email', 'surel', 'username', 'nama', 'name', 'kelas', 'class', 'absen', 'attendance', 'guru', 'mentor', 'npsn', 'sekolah', 'school'];
-        $descIndices = ['r' => -1, 'i' => -1, 'a' => -1, 's' => -1, 'e' => -1, 'c' => -1];
-        $majorsIndices = ['r' => -1, 'i' => -1, 'a' => -1, 's' => -1, 'e' => -1, 'c' => -1];
-
-        foreach ($headers as $idx => $header) {
-            if (str_contains($header, 'email') || str_contains($header, 'surel') || str_contains($header, 'username')) {
-                $emailIndex = $idx;
-            } elseif (in_array($header, ['score_r', 'skor_r', 'r', 'realistic'])) {
-                $scoreIndices['r'] = $idx;
-                $hasExplicitScores = true;
-            } elseif (in_array($header, ['score_i', 'skor_i', 'i', 'investigative'])) {
-                $scoreIndices['i'] = $idx;
-                $hasExplicitScores = true;
-            } elseif (in_array($header, ['score_a', 'skor_a', 'a', 'artistic'])) {
-                $scoreIndices['a'] = $idx;
-                $hasExplicitScores = true;
-            } elseif (in_array($header, ['score_s', 'skor_s', 's', 'social'])) {
-                $scoreIndices['s'] = $idx;
-                $hasExplicitScores = true;
-            } elseif (in_array($header, ['score_e', 'skor_e', 'e', 'enterprising'])) {
-                $scoreIndices['e'] = $idx;
-                $hasExplicitScores = true;
-            } elseif (in_array($header, ['score_c', 'skor_c', 'c', 'conventional'])) {
-                $scoreIndices['c'] = $idx;
-                $hasExplicitScores = true;
-            } elseif (in_array($header, ['dominant_code', 'kode_dominan', 'kode', 'hasil'])) {
-                $dominantCodeIndex = $idx;
-            } elseif (str_contains($header, 'guru') || str_contains($header, 'mentor') || str_contains($header, 'pembimbing')) {
-                $mentorIndex = $idx;
-            }
-
-            foreach (['r', 'i', 'a', 's', 'e', 'c'] as $dim) {
-                if (in_array($header, ["desc_{$dim}", "deskripsi_{$dim}"])) {
-                    $descIndices[$dim] = $idx;
-                }
-                if (in_array($header, ["majors_{$dim}", "jurusan_{$dim}", "bidang_studi_{$dim}"])) {
-                    $majorsIndices[$dim] = $idx;
-                }
-            }
-        }
-
-        if ($emailIndex === -1) {
-            return [
-                'success' => false,
-                'message' => 'Kolom email tidak ditemukan dalam file. Pastikan terdapat kolom email (seperti "Email Resmi Google Workspace Gen-U").',
-                'importedCount' => 0,
-            ];
-        }
-
-        $hasDataRows = false;
-        for ($i = 1; $i < count($lines); $i++) {
-            if (trim($lines[$i]) !== "") {
-                $hasDataRows = true;
-                break;
-            }
-        }
-
-        if (!$hasDataRows) {
-            return [
-                'success' => true,
-                'message' => 'lembar spreadsheet saat ini belum memiliki respon jawaban siswa',
-                'importedCount' => 0,
-            ];
-        }
-
-        $test = PsychometricTest::find($testId);
-        $manager = new PsychometricManager();
-        $testType = $test ? $manager->resolveTypeForTest($test) : 'riasec';
-        $driver = $manager->getDriver($testType);
-
-        $timestampIndex = -1;
-        foreach ($headers as $idx => $header) {
-            if (str_contains($header, 'timestamp') || str_contains($header, 'waktu') || str_contains($header, 'tanggal')) {
-                $timestampIndex = $idx;
-                break;
-            }
-        }
-
-        $parseTimestampToEpoch = function (?string $timestampStr, int $rowOrder): int {
-            if (empty($timestampStr)) {
-                return $rowOrder;
-            }
-
-            $timestampStr = trim($timestampStr);
-
-            $d = \DateTime::createFromFormat('d/m/Y H:i:s', $timestampStr);
-            if ($d !== false) {
-                return $d->getTimestamp();
-            }
-
-            $d = \DateTime::createFromFormat('d/m/Y H:i', $timestampStr);
-            if ($d !== false) {
-                return $d->getTimestamp();
-            }
-
-            $d = \DateTime::createFromFormat('Y-m-d H:i:s', $timestampStr);
-            if ($d !== false) {
-                return $d->getTimestamp();
-            }
-
-            $time = strtotime($timestampStr);
-            if ($time !== false && $time > 0) {
-                return $time;
-            }
-
-            return $rowOrder;
-        };
-
-        $rowsByEmail = [];
-        $stream = fopen('php://memory', 'r+');
-        fwrite($stream, $content);
-        rewind($stream);
-
-        $lineIdx = 0;
-        while (($row = fgetcsv($stream, 0, $separator)) !== false) {
-            $lineIdx++;
-            if ($lineIdx === 1) continue;
-
-            $email = isset($row[$emailIndex]) ? strtolower(trim($row[$emailIndex])) : '';
-            if (empty($email)) continue;
-
-            $timestampVal = ($timestampIndex !== -1 && isset($row[$timestampIndex])) ? $row[$timestampIndex] : null;
-            $epoch = $parseTimestampToEpoch($timestampVal, $lineIdx);
-
-            if (!isset($rowsByEmail[$email]) || $epoch > $rowsByEmail[$email]['epoch']) {
-                $rowsByEmail[$email] = [
-                    'row' => $row,
-                    'epoch' => $epoch,
-                ];
-            }
-        }
-        fclose($stream);
-
-        $importedCount = 0;
-
-        foreach ($rowsByEmail as $email => $itemData) {
-            $row = $itemData['row'];
-
-            $user = User::where('email', $email)
-                ->orWhere('personal_email', $email)
-                ->first();
-
-            if (!$user) {
-                $user = User::whereNotNull('registration_id')
-                    ->where('registration_id', '!=', '')
-                    ->where(function ($q) use ($email) {
-                        $q->whereRaw('? LIKE CONCAT("%", registration_id, "%")', [$email]);
-                    })
-                    ->first();
-            }
-
-            if (!$user) continue;
-
-            $mentorName = $mentorIndex !== -1 && !empty($row[$mentorIndex])
-                ? trim($row[$mentorIndex])
-                : ($user->selected_mentor ?? 'Bpk. Budi Santoso, M.Psi');
-
-            $calculation = $driver->calculate($rawHeaders, $row, $test?->config ?? []);
-
-            $scoreR = null;
-            $scoreI = null;
-            $scoreA = null;
-            $scoreS = null;
-            $scoreE = null;
-            $scoreC = null;
-
-            if ($testType === 'riasec') {
-                $dimScores = $calculation['dimension_scores'] ?? [];
-                $scoreR = $dimScores['r'] ?? 0;
-                $scoreI = $dimScores['i'] ?? 0;
-                $scoreA = $dimScores['a'] ?? 0;
-                $scoreS = $dimScores['s'] ?? 0;
-                $scoreE = $dimScores['e'] ?? 0;
-                $scoreC = $dimScores['c'] ?? 0;
-            }
-
-            $primaryResult = $calculation['primary_result'] ?? ($calculation['dominant_code'] ?? null);
-
-            RiasecAssessment::updateOrCreate(
-                [
-                    'user_id' => $user->id,
-                    'psychometric_test_id' => $testId,
-                ],
-                [
-                    'test_type' => $testType,
-                    'score_r' => $scoreR,
-                    'score_i' => $scoreI,
-                    'score_a' => $scoreA,
-                    'score_s' => $scoreS,
-                    'score_e' => $scoreE,
-                    'score_c' => $scoreC,
-                    'dominant_code' => $calculation['dominant_code'] ?? $primaryResult,
-                    'primary_result' => $primaryResult,
-                    'dimension_scores' => $calculation['dimension_scores'] ?? null,
-                    'raw_answers' => $calculation['raw_answers'] ?? null,
-                    'interpretation' => $calculation['interpretation'] ?? null,
-                    'mentor_name' => $mentorName,
-                    'status' => 'selesai',
-                    'completed_at' => now(),
-                ]
-            );
-
-            $importedCount++;
-        }
-
-        if ($importedCount === 0) {
-            return [
-                'success' => true,
-                'message' => 'terdapat data respon namun belum ada email yang cocok dengan siswa terdaftar',
-                'importedCount' => 0,
-            ];
-        }
-
-        return [
-            'success' => true,
-            'message' => "Berhasil mengimpor skor untuk {$importedCount} siswa.",
-            'importedCount' => $importedCount,
-        ];
     }
 
     public function updateStudentScore(Request $request, int $id): RedirectResponse

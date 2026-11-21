@@ -7,6 +7,7 @@ use App\Models\Mentor;
 use App\Models\PsychometricTest;
 use App\Models\RiasecAssessment;
 use App\Models\User;
+use App\Services\Psychometrics\SpreadsheetSyncService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -17,6 +18,8 @@ class RiasecController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
+        (new SpreadsheetSyncService())->syncPendingTestsIfNeeded($user, 20);
+
         $tests = PsychometricTest::where('is_active', true)
             ->orderBy('order_num', 'asc')
             ->orderBy('created_at', 'asc')
@@ -179,6 +182,15 @@ class RiasecController extends Controller
                 'status' => 'selesai',
                 'mentor_name' => $chosenMentor,
             ]);
+        }
+
+        $test = PsychometricTest::find($testId);
+        if ($test && !empty($test->spreadsheet_url)) {
+            try {
+                (new SpreadsheetSyncService())->syncForStudent($test, $user);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Auto-sync saat complete gagal untuk siswa #{$user->id}, tes #{$testId}: " . $e->getMessage());
+            }
         }
 
         return back()->with('success', 'Tes berhasil diselesaikan.');

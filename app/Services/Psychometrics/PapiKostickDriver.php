@@ -102,6 +102,49 @@ class PapiKostickDriver implements ScoringDriverInterface
         return 'papi_kostick';
     }
 
+    /**
+     * Rumus Perhitungan Tes PAPI Kostick (90 Butir Pilihan Berpasangan)
+     *
+     * Tujuan:
+     * Memetakan 20 aspek kepribadian kerja yang terbagi ke dalam 7 area:
+     * - Arah Kerja   : N (Finish Task), G (Hard Worker), A (Need to Achieve)
+     * - Kepemimpinan : L (Leadership), P (Control Others), I (Decision Making)
+     * - Aktivitas    : T (Pace), V (Vigorous)
+     * - Sifat Sosial : X (Be Noticed), S (Social Extension), B (Belong to Groups), O (Closeness)
+     * - Gaya Kerja   : R (Theoretical), D (Details), C (Organized)
+     * - Temperamen   : Z (Change), E (Emotional Restraint), K (Forceful)
+     * - Ketaatan     : F (Support from Authority), W (Rules & Supervision)
+     *
+     * Langkah 1 — Pembacaan Data:
+     * - Sistem membaca kolom bernomor `1` s.d. `90` (mendukung format `"1"` atau `"1."`).
+     * - Setiap jawaban dideteksi apakah memilih pernyataan `'a'` (diawali `a` / mengandung `a.`)
+     *   atau pernyataan `'b'` (diawali `b` / mengandung `b.`).
+     *
+     * Langkah 2 — Akumulasi Skor 20 Aspek (berdasarkan `$itemPairs`):
+     * - Setiap butir soal (1..90) memasangkan 2 aspek berbeda pada opsi `'a'` dan `'b'`.
+     * - Contoh butir 1 (`['a' => 'G', 'b' => 'E']`):
+     *   Jika siswa memilih `'a'`, skor aspek `G` bertambah +1; jika memilih `'b'`, skor aspek `E` bertambah +1.
+     * - Setiap aspek muncul pada tepat 9 butir soal sehingga rentang skor tiap aspek adalah 0 s.d. 9.
+     *
+     * Langkah 3 — Penentuan 3 Aspek Dominan:
+     * - Ke-20 skor aspek diurutkan dari nilai tertinggi ke terendah (`arsort`).
+     * - Diambil 3 aspek teratas dan diformat menjadi string `"KODE:SKOR"`.
+     * - Contoh: Jika N=7, B=7, O=6 adalah 3 nilai tertinggi -> hasil `"N:7-B:7-O:6"`.
+     *
+     * Pemetaan Kolom Tabel Database `riasec_assessments`:
+     * - `user_id`              : ID siswa pemilik asesmen (relasi ke tabel `users`)
+     * - `psychometric_test_id` : ID alat tes PAPI Kostick (relasi ke tabel `psychometric_tests`)
+     * - `test_type`            : Bernilai `'papi_kostick'`
+     * - `score_r..score_c`     : Bernilai `null` (khusus untuk tes RIASEC)
+     * - `primary_result`       : String 3 aspek tertinggi beserta skornya (contoh: `'N:7-B:7-O:6'`)
+     * - `dominant_code`        : Diisi sama dengan `primary_result` saat sinkronisasi spreadsheet
+     * - `dimension_scores`     : JSON skor ke-20 aspek (0-9), contoh: `{"G":4,"L":4,"I":2,...,"W":2}`
+     * - `raw_answers`          : JSON pilihan mentah siswa per nomor 1..90, contoh: `{"1":"a. saya adalah pekerja keras",...}`
+     * - `interpretation`       : JSON berisi `type_name`, `summary`, `top_aspects` (3 teratas), `aspect_details` (20 aspek), `areas` (7 area), dan `majors` (rekomendasi jurusan)
+     * - `mentor_name`          : Nama guru/mentor pembimbing yang dipilih siswa atau dari spreadsheet
+     * - `status`               : Status pengerjaan (`'selesai'`)
+     * - `completed_at`         : Timestamp waktu selesai/sinkronisasi
+     */
     public function calculate(array $rowHeaders, array $rowValues, array $config = []): array
     {
         $aspects = [
