@@ -278,6 +278,7 @@ class DashboardController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'test_type' => ['required', 'string', 'in:riasec,papi_kostick,disc,mbti'],
             'description' => ['required', 'string'],
             'gform_url' => ['required', 'string', 'max:500'],
             'spreadsheet_url' => ['required', 'string', 'max:500'],
@@ -287,6 +288,7 @@ class DashboardController extends Controller
 
         PsychometricTest::create([
             'name' => $validated['name'],
+            'test_type' => $validated['test_type'],
             'description' => $validated['description'],
             'gform_url' => $validated['gform_url'],
             'spreadsheet_url' => $validated['spreadsheet_url'],
@@ -303,6 +305,7 @@ class DashboardController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'test_type' => ['required', 'string', 'in:riasec,papi_kostick,disc,mbti'],
             'description' => ['required', 'string'],
             'gform_url' => ['required', 'string', 'max:500'],
             'spreadsheet_url' => ['required', 'string', 'max:500'],
@@ -310,6 +313,7 @@ class DashboardController extends Controller
 
         $test->update([
             'name' => $validated['name'],
+            'test_type' => $validated['test_type'],
             'description' => $validated['description'],
             'gform_url' => $validated['gform_url'],
             'spreadsheet_url' => $validated['spreadsheet_url'],
