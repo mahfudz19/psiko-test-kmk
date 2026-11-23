@@ -192,23 +192,23 @@ class MbtiDriver implements ScoringDriverInterface
 
         $typesData = [
             'INTJ' => [
-                'name' => 'The Architect (Ahli Strategi Visioner)',
-                'summary' => 'Pemikir imajinatif dan strategis, dengan rencana untuk segala sesuatunya.',
+                'name' => 'Independen',
+                'summary' => 'Individu yang gigih mencari sudut pandang baru dalam melihat suatu masalah dan sangat menikmati pemahaman-pemahaman baru. Mudah menangkap sesuatu dan berpikir dengan cepat, sangat mempercayai visi mereka, serta menampilkan yang terbaik ketika mengembangkan ide-ide, teori, dan prinsip-prinsip.',
                 'majors' => ['Teknik Informatika', 'Data Science', 'Fisika Teoretis', 'Teknik Elektro', 'Ilmu Hukum'],
             ],
             'INTP' => [
-                'name' => 'The Logician (Pemikir Inovatif)',
-                'summary' => 'Penemu inovatif dengan kehausan tak terpadamkan akan pengetahuan logis.',
-                'majors' => ['Ilmu Komputer / Software Engineering', 'Matematika Murni', 'Filsafat', 'Bioteknologi'],
+                'name' => 'Konseptual (The Architect / The Thinker)',
+                'summary' => 'Sangat menghargai intelektualitas dan pengetahuan, menikmati hal-hal teoritis dan ilmiah, serta senang memecahkan masalah dengan logika dan analisa. Cenderung diam dan lebih suka bekerja sendiri, kritis, memiliki minat yang jelas, dan akan sangat serius serta antusias menekuni bidang yang diminatinya.',
+                'majors' => ['Ilmu Komputer / Software Engineering', 'Sistem Informasi', 'Matematika Murni', 'Ilmu Hukum', 'Fotografi / Media'],
             ],
             'ENTJ' => [
-                'name' => 'The Commander (Pemimpin Tegas & Berani)',
-                'summary' => 'Pemimpin pemberani, imajinatif, dan berkemauan keras, selalu menemukan jalan atau membuatnya.',
+                'name' => 'Pemimpin Alami',
+                'summary' => 'Mengambil tanggung jawab sebagai pimpinan secara cepat dan menyelesaikan masalah secara langsung terutama dalam situasi yang membingungkan dan tidak efisien. Memberikan struktur pada organisasi, mendesain strategi berorientasi tindakan, serta menampilkan yang terbaik dalam situasi berpikir analitis dan strategis.',
                 'majors' => ['Manajemen Bisnis', 'Ilmu Hukum', 'Ekonomi Pembangunan', 'Teknik Industri'],
             ],
             'ENTP' => [
-                'name' => 'The Debater (Inovator Cerdas & Argumentatif)',
-                'summary' => 'Pemikir cerdas dan ingin tahu yang tidak bisa menolak tantangan intelektual.',
+                'name' => 'Inovatif-Kreatif',
+                'summary' => 'Selalu mencari hal-hal baru dan rumit, percaya pada kemampuan diri untuk berimprovisasi dan mengatasi masalah yang muncul. Sangat mandiri, menjunjung tinggi adaptasi dan inovasi, serta menampilkan yang terbaik dalam situasi yang berubah untuk membuat model konseptual dan strategi perubahan secara efektif.',
                 'majors' => ['Hubungan Internasional', 'Ilmu Komunikasi', 'Kewirausahaan Bisnis', 'Teknik Elektro'],
             ],
             'INFJ' => [
@@ -222,18 +222,18 @@ class MbtiDriver implements ScoringDriverInterface
                 'majors' => ['Sastra Indonesia / Inggris', 'Psikologi', 'Seni Rupa', 'Hubungan Masyarakat'],
             ],
             'ENFJ' => [
-                'name' => 'The Protagonist (Pemimpin Karismatik & Inspirator)',
-                'summary' => 'Pemimpin karismatik dan menginspirasi, mampu memukau para pendengarnya.',
+                'name' => 'Meyakinkan',
+                'summary' => 'Fasilitator yang antusias dan menghadirkan kehangatan serta visi dalam membantu orang lain memenuhi kebutuhannya. Mampu menangkap aspirasi orang lain dan merencanakannya menjadi kenyataan, toleran, komunikator yang baik, serta menampilkan yang terbaik dalam situasi yang membutuhkan kepekaan antarpribadi.',
                 'majors' => ['Pendidikan / Keguruan', 'Ilmu Komunikasi', 'Manajemen SDM', 'Sosiologi'],
             ],
             'ENFP' => [
-                'name' => 'The Campaigner (Penuh Semangat & Eksploratif)',
-                'summary' => 'Pribadi berjiwa bebas, antusias, kreatif, dan mudah bergaul, selalu menemukan alasan untuk tersenyum.',
+                'name' => 'Optimis',
+                'summary' => 'Pemrakarsa perubahan yang tajam menangkap kemungkinan-kemungkinan dan membangkitkan semangat orang lain dengan antusiasmenya. Cenderung suka memulai proyek atau hubungan baru, mampu mengantisipasi kebutuhan orang lain, serta menampilkan yang terbaik dalam situasi yang mengalir untuk mengekspresikan kreativitas dan kharisma.',
                 'majors' => ['Ilmu Komunikasi', 'Desain Komunikasi Visual', 'Hubungan Internasional', 'Marketing'],
             ],
             'ISTJ' => [
-                'name' => 'The Logistician (Praktis, Faktual & Andal)',
-                'summary' => 'Pribadi praktis dan mengutamakan fakta, yang keandalannya tidak diragukan lagi.',
+                'name' => 'Bertanggungjawab',
+                'summary' => 'Sistematis, pekerja keras, dan cermat; mengerjakan tugas sampai selesai sesuai jadwal yang direncanakan. Serius dan tulus dalam bekerja, bekerja baik dalam struktur yang jelas, kuat mencari fakta dan detail, serta menjunjung tinggi komitmennya.',
                 'majors' => ['Akuntansi', 'Sistem Informasi', 'Teknik Sipil', 'Manajemen Logistik'],
             ],
             'ISFJ' => [
@@ -242,33 +242,33 @@ class MbtiDriver implements ScoringDriverInterface
                 'majors' => ['Keperawatan / Farmasi', 'Pendidikan Anak Usia Dini', 'Administrasi Rumah Sakit'],
             ],
             'ESTJ' => [
-                'name' => 'The Executive (Pengelola Andal & Terstruktur)',
-                'summary' => 'Administrator luar biasa, tak tertandingi dalam mengelola berbagai hal atau orang.',
+                'name' => 'Konservatif-Disiplin',
+                'summary' => 'Pelaksana yang melakukan tugas secara langsung agar selesai dengan menggunakan logika dan analisis sebagai prinsip hidup. Cepat membuat keputusan dan rencana kerja, memantau penyelesaian tugas secara terus-menerus, serta menampilkan yang terbaik dalam situasi terstruktur yang membutuhkan hasil akhir.',
                 'majors' => ['Administrasi Publik', 'Manajemen Operasional', 'Ilmu Hukum', 'Teknik Sipil'],
             ],
             'ESFJ' => [
-                'name' => 'The Consul (Perhatian, Populer & Sosial)',
-                'summary' => 'Sangat peduli, sosial, dan populer, selalu ingin membantu sesama.',
+                'name' => 'Harmonis',
+                'summary' => 'Senang membantu dan menempatkan harmoni sebagai nilai yang dijunjung tinggi, serta sangat memperhatikan kebutuhan orang lain. Mampu bekerja sama dengan akurat dan tepat waktu, menghargai komitmen, serta menampilkan yang terbaik dalam mengorganisasi orang-orang untuk menyelesaikan sebuah tugas.',
                 'majors' => ['Hubungan Masyarakat', 'Manajemen Perhotelan / Pariwisata', 'Pendidikan Guru'],
             ],
             'ISTP' => [
-                'name' => 'The Virtuoso (Praktisi Berani & Pengotak-Atik)',
-                'summary' => 'Eksperimenter pemberani dan praktis, menguasai semua jenis alat.',
+                'name' => 'Pragmatis',
+                'summary' => 'Realistis, menerapkan penalaran dan kenyamanan dalam mengelola serta beradaptasi pada situasi. Sangat peduli pada lingkungan sekitar, cepat merespons, tidak suka dikekang oleh jadwal ketat, dan menampilkan kinerja terbaik dalam situasi yang membutuhkan perhatian cepat serta rencana praktis yang logis.',
                 'majors' => ['Teknik Mesin', 'Teknik Otomotif / Robotika', 'Teknologi Informasi'],
             ],
             'ISFP' => [
-                'name' => 'The Adventurer (Seniman Fleksibel & Menawan)',
-                'summary' => 'Seniman fleksibel dan menawan, selalu siap menjelajahi dan mengalami hal baru.',
+                'name' => 'Artistik',
+                'summary' => 'Lembut, menunjukkan kasih sayang, terbuka, dan fleksibel; mempertimbangkan orang lain tanpa memaksakan pandangan. Pendiam dan rendah hati, menghindari perbedaan pendapat, sering memberi sentuhan keindahan, serta menampilkan yang terbaik saat membantu kesejahteraan orang lain.',
                 'majors' => ['Desain Produk / Mode', 'Seni Musik / Teater', 'Arsitektur Lanskap'],
             ],
             'ESTP' => [
-                'name' => 'The Entrepreneur (Enerjik, Cerdas & Spontan)',
-                'summary' => 'Orang cerdas, energik, dan sangat perseptif, yang benar-benar menikmati hidup dalam tantangan nyata.',
+                'name' => 'Spontan',
+                'summary' => 'Berorientasi pada tindakan, pragmatis, senang bergaul, dan realistis. Menggunakan kecepatan dan fleksibilitasnya untuk menemukan solusi masalah, hemat kata-kata, serta menampilkan yang terbaik pada kondisi yang membutuhkan orientasi saat ini dan pendekatan yang pragmatis.',
                 'majors' => ['Manajemen Bisnis', 'Manajemen Pemasaran', 'Ilmu Keolahragaan', 'Teknik Industri'],
             ],
             'ESFP' => [
-                'name' => 'The Entertainer (Spontan, Ramah & Berenergi)',
-                'summary' => 'Penghibur spontan, energik, dan antusias - hidup tidak pernah membosankan di dekat mereka.',
+                'name' => 'Murah Hati',
+                'summary' => 'Bersahabat, senang bersosialisasi, mencintai kesenangan, antusias, dan bersemangat. Sangat baik dalam menjalin hubungan dengan orang lain, simpatik, serta mampu memenuhi kebutuhan orang lain maupun situasi dengan cara yang menyenangkan dan penuh gairah.',
                 'majors' => ['Seni Pertunjukan', 'Pariwisata & Event Management', 'Ilmu Komunikasi Penyiaran'],
             ],
         ];
