@@ -411,7 +411,7 @@ export default function Landing({
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'EducationalApplication',
-    name: 'Gen-U (Generasi Universal)',
+    name: 'Gen-U (Generasi Univeral)',
     alternateName: 'Gen-U',
     description: 'Platform tes minat bakat RIASEC, eksplorasi jurusan perkuliahan, simulasi PMB, dan bimbingan karier terpadu untuk siswa sekolah.',
     applicationCategory: 'EducationalApplication',
@@ -591,7 +591,7 @@ export default function Landing({
                   {landingSlides[visibleLandingSlide].title}
                 </h1>
                 <p className="mt-3.5 sm:mt-4 lg:mt-5 max-w-xl text-sm sm:text-base lg:text-base leading-relaxed text-white/90">
-                  Generasi Universal akan membantu kamu menemukan jurusan, mengenal bakat dan minat, serta memperoleh informasi kampus secara lengkap dalam satu platform.
+                  Generasi Univeral akan membantu kamu menemukan jurusan, mengenal bakat dan minat, serta memperoleh informasi kampus secara lengkap dalam satu platform.
                 </p>
               </div>
               <div className="mt-6 sm:mt-8 flex flex-wrap items-center gap-3 sm:gap-4">
@@ -1421,7 +1421,7 @@ export default function Landing({
               Siap Menentukan Masa Depanmu?
             </h2>
             <p className="mt-4 text-blue-100/90 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
-              Bergabunglah dengan ribuan siswa lainnya yang telah menemukan jalan sukses mereka bersama Generasi Universal.
+              Bergabunglah dengan ribuan siswa lainnya yang telah menemukan jalan sukses mereka bersama Generasi Univeral.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
@@ -1560,7 +1560,7 @@ export default function Landing({
           </div>
 
           <div className="border-t border-slate-600/40 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-            <p>&copy; 2026 Generasi Universal (Gen-U). All rights reserved.</p>
+            <p>&copy; 2026 Generasi Univeral (Gen-U). All rights reserved.</p>
             <div className="flex items-center gap-6">
               <Link href="#" className="hover:text-slate-200 transition-colors">
                 Syarat &amp; Ketentuan

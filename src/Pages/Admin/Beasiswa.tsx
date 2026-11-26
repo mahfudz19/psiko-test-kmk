@@ -724,7 +724,7 @@ export default function AdminBeasiswa({
                     required
                     value={formOrganizer}
                     onChange={(e) => setFormOrganizer(e.target.value)}
-                    placeholder="Contoh: Kementerian Pendidikan / Yayasan Generasi Universal"
+                    placeholder="Contoh: Kementerian Pendidikan / Yayasan Generasi Univeral"
                     className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-xs text-gray-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
                   />
                 </div>

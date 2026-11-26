@@ -117,6 +117,8 @@ class DashboardController extends Controller
             'totalMajors' => Major::count(),
         ];
 
+        MentorBooking::rejectExpiredPendingBookings();
+
         $upcomingBooking = MentorBooking::with('mentor')
             ->where('student_id', $user->id)
             ->where('booking_date', '>=', now()->toDateString())

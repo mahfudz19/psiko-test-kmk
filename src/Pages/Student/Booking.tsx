@@ -86,6 +86,13 @@ export default function StudentBooking({
     topic: '',
   })
 
+  const [selectedHour, selectedMinute] = data.booking_time
+    ? data.booking_time.split(':')
+    : ['', '']
+
+  const hours24 = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
+  const minutes60 = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
+
   const openFormForMentor = (mentorId: number) => {
     setData('mentor_id', String(mentorId))
     setBookingFormOpen(true)
@@ -181,32 +188,61 @@ export default function StudentBooking({
                   ))}
                 </select>
               </div>
-              <div>
-                <label htmlFor="booking-date" className="mb-1.5 block text-sm font-semibold text-gray-700">
-                  Tanggal
-                </label>
-                <input
-                  id="booking-date"
-                  type="date"
-                  required
-                  min={new Date().toISOString().split('T')[0]}
-                  value={data.booking_date}
-                  onChange={(e) => setData('booking_date', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 p-3 text-gray-800 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-                />
-              </div>
-              <div>
-                <label htmlFor="booking-time" className="mb-1.5 block text-sm font-semibold text-gray-700">
-                  Waktu
-                </label>
-                <input
-                  id="booking-time"
-                  type="time"
-                  required
-                  value={data.booking_time}
-                  onChange={(e) => setData('booking_time', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 p-3 text-gray-800 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-                />
+              <div className="md:col-span-2 flex flex-col sm:flex-row gap-5">
+                <div className="flex-1">
+                  <label htmlFor="booking-date" className="mb-1.5 block text-sm font-semibold text-gray-700">
+                    Tanggal
+                  </label>
+                  <input
+                    id="booking-date"
+                    type="date"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    value={data.booking_date}
+                    onChange={(e) => setData('booking_date', e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 p-3 text-gray-800 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                  />
+                </div>
+                <div className="shrink-0">
+                  <label htmlFor="booking-hour" className="mb-1.5 block text-sm font-semibold text-gray-700">
+                    Waktu (WITA)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      id="booking-hour"
+                      required
+                      value={selectedHour}
+                      onChange={(e) =>
+                        setData('booking_time', `${e.target.value}:${selectedMinute || '00'}`)
+                      }
+                      className="w-20 rounded-lg border border-gray-300 bg-white px-2.5 py-3 text-gray-800 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                    >
+                      <option value="">Jam</option>
+                      {hours24.map((h) => (
+                        <option key={h} value={h}>
+                          {h}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="font-bold text-gray-500">:</span>
+                    <select
+                      id="booking-minute"
+                      required
+                      value={selectedMinute}
+                      onChange={(e) =>
+                        setData('booking_time', `${selectedHour || '08'}:${e.target.value}`)
+                      }
+                      className="w-24 rounded-lg border border-gray-300 bg-white px-2.5 py-3 text-gray-800 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                    >
+                      <option value="">Menit</option>
+                      {minutes60.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
               <div className="md:col-span-2">
                 <label htmlFor="booking-topic" className="mb-1.5 block text-sm font-semibold text-gray-700">
@@ -252,7 +288,7 @@ export default function StudentBooking({
                     <h4 className="font-bold text-gray-800">{b.mentor?.name || 'Mentor'}</h4>
                     <p className="text-sm text-gray-600 mt-0.5">{b.topic}</p>
                     <div className="flex items-center gap-2 mt-2 text-xs text-gray-500 font-medium">
-                      <Clock size={14} /> {formatBookingDate(b.booking_date)} pukul {formatBookingTime(b.booking_time)} WIB
+                      <Clock size={14} /> {formatBookingDate(b.booking_date)} pukul {formatBookingTime(b.booking_time)} WITA
                     </div>
                   </div>
                   <div>

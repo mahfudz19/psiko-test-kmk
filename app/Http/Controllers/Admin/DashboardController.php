@@ -44,6 +44,8 @@ class DashboardController extends Controller
         $completedAssessments = RiasecAssessment::where('status', 'selesai')->count();
         $totalMajors = Major::count();
         $totalActiveTests = PsychometricTest::where('is_active', true)->count();
+        MentorBooking::rejectExpiredPendingBookings();
+
         $totalMentoring = MentorBooking::count();
 
         $growth = [];
