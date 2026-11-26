@@ -52,7 +52,7 @@ function formatBookingDate(dateStr: string): string {
 function formatBookingTime(timeStr: string): string {
   if (!timeStr) return '-'
   const clean = timeStr.slice(0, 5)
-  return `${clean} WIB`
+  return `${clean} WITA`
 }
 
 export default function GuruSesiMentoring({ bookings = [] }: GuruSesiMentoringProps) {

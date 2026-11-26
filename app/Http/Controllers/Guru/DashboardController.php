@@ -54,6 +54,8 @@ class DashboardController extends Controller
             ->whereIn('mentor_name', $guruNames)
             ->where('status', 'selesai')
             ->count();
+        MentorBooking::rejectExpiredPendingBookings();
+
         $pendingSessionsCount = MentorBooking::whereHas('student', function ($q) use ($guru) {
             $q->where('npsn', $guru->npsn);
         })->where('status', 'pending')->count();

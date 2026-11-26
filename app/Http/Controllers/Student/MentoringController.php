@@ -40,6 +40,8 @@ class MentoringController extends Controller
             })->get();
         }
 
+        MentorBooking::rejectExpiredPendingBookings();
+
         $myBookings = MentorBooking::with('mentor')
             ->where('student_id', $student->id)
             ->latest()

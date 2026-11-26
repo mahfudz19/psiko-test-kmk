@@ -88,7 +88,7 @@ return new class extends Migration
                 'title' => 'Beasiswa Prestasi Akademik 2026 Resmi Dibuka!',
                 'slug' => 'beasiswa-prestasi-akademik-2026-resmi-dibuka',
                 'excerpt' => 'Pendaftaran dibuka hingga 30 November 2026. Kuota terbatas 100 penerima dana pendidikan penuh.',
-                'content' => '<p>Yayasan Generasi Universal (Gen-U) resmi membuka pendaftaran Beasiswa Prestasi Akademik tahun 2026. Program beasiswa ini diperuntukkan bagi calon mahasiswa berprestasi yang berkeinginan kuat menempuh studi lanjut.</p><p>Persyaratan mencakup nilai rata-rata rapor semester 1-5 minimal 85.00, surat rekomendasi kepala sekolah, serta sertifikat prestasi penunjang. Segera lengkapi berkas Anda sebelum batas akhir penutupan pendaftaran.</p>',
+                'content' => '<p>Yayasan Generasi Univeral (Gen-U) resmi membuka pendaftaran Beasiswa Prestasi Akademik tahun 2026. Program beasiswa ini diperuntukkan bagi calon mahasiswa berprestasi yang berkeinginan kuat menempuh studi lanjut.</p><p>Persyaratan mencakup nilai rata-rata rapor semester 1-5 minimal 85.00, surat rekomendasi kepala sekolah, serta sertifikat prestasi penunjang. Segera lengkapi berkas Anda sebelum batas akhir penutupan pendaftaran.</p>',
                 'image' => '/landing-beasiswa-1.jpg',
                 'author' => 'Sekretariat Beasiswa Gen-U',
                 'read_time' => null,

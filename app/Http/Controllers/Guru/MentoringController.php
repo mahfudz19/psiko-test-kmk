@@ -21,6 +21,8 @@ class MentoringController extends Controller
             ]);
         }
 
+        MentorBooking::rejectExpiredPendingBookings();
+
         $bookings = MentorBooking::whereHas('student', function ($q) use ($guru) {
                 $q->where('npsn', $guru->npsn);
             })
